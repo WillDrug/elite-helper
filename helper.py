@@ -1,9 +1,4 @@
 
-from eddb.station import station_loader
-stations = station_loader(ids=[5611])
-print(stations)
-exit()
-
 
 from bot import EliteBot
 from config import telegram_token
@@ -19,7 +14,7 @@ for update in di.update_generator():
     if update[0] == 'docked':
         system = update[1]
         station = update[2]
-        if bot.trading:
+        if bot.trading:  # todo: switch to State() class, use both with bot and helper.py; push references into helpers
             messages = []
             # 1)
             # check current rares distances

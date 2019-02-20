@@ -3,9 +3,10 @@ from time import time
 import pickle
 import requests
 import logging
+import os
 
 class EDDB:
-    api_names = ['commodities.json', 'stations.jsonl', 'listings.csv']
+    api_names = ['commodities.json', 'stations.jsonl', 'listings.csv', 'systems.csv']
 
     def cset(self, k, v):
         self.config[k] = v
@@ -24,10 +25,11 @@ class EDDB:
         self.config['cached'][k] = v
 
     def __init__(self):
+        self.dir_path = os.path.dirname(os.path.realpath(__file__))
         self.logger = logging.getLogger('EDDB_Base')
         self.logger.setLevel(logging.INFO)
         try:
-            self.config = pickle.load(open('eddb/data/config.pcl', 'rb+'), encoding='utf-8')
+            self.config = pickle.load(open(f'{self.dir_path}/data/config.pcl', 'rb+'), encoding='utf-8')
         except FileNotFoundError:
             self.config = {}
             self.cset('timeout', 36800)
@@ -45,7 +47,7 @@ class EDDB:
         if response.status_code != 200:
             return False
 
-        with open(f'eddb/data/{api}', 'w+', encoding='utf-8') as handle:  # todo, fix paths
+        with open(f'{self.dir_path}/data/{api}', 'w+', encoding='utf-8') as handle:  # todo, fix paths
             for block in response.iter_content(1024):
                 handle.write(block.decode('utf-8'))
         self.ccset(api, time())
@@ -70,18 +72,18 @@ class EDDB:
 
 
     def save_config(self):
-        pickle.dump(self.config, open('eddb/data/config.pcl', 'wb+'))  # todo; fix paths
+        pickle.dump(self.config, open(f'{self.dir_path}/data/config.pcl', 'wb+'))  # todo; fix paths
 
     def read(self, api):
         if api not in self.api_names:
             raise ModuleNotFoundError
-        f = open(f'eddb/data/{api}', 'r', encoding='utf-8')
+        f = open(f'{self.dir_path}/data/{api}', 'r', encoding='utf-8')
         return f.read()
 
     def read_iter(self, api):
         if api not in self.api_names:
             raise ModuleNotFoundError
-        f = open(f'eddb/data/{api}', 'r', encoding='utf-8')
+        f = open(f'{self.dir_path}/data/{api}', 'r', encoding='utf-8')
         return FileReader(f)
 
 class FileReader:

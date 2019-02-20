@@ -24,20 +24,28 @@ class LandingPad:
         return self.size_num < other.size_num
 
 
-def station_loader(ids: list = [], names: list = [], landing_pad: str = 'None', distance_to_star: int = -1):
+def station_loader(refs: list = [], landing_pad: str = 'None', distance_to_star: int = -1):
     eddb.recache(this_api)
     pad_filter = LandingPad(landing_pad)
     ret_list = []
     for station in eddb.read_iter(this_api):
         station = json.loads(station)
-        if ids.__len__() > 0 and station.get("id", 0) not in ids:
-            continue
-        if names.__len__() > 0 and station.get("name", "") not in names:
-            continue
+
+        if refs.__len__() > 0:
+            filtered = True
+            for st, sy in refs:
+                if st == station.get("name", "") and (sy == station.get("system_id", 0) or sy is None):
+                    filtered = False
+
+            if filtered:
+                continue
+
         if pad_filter > LandingPad(station.get('max_landing_pad_size', 'None')):
             continue
-        if distance_to_star > 0 and station.get('distance_to_star', 0) > distance_to_star:
+
+        if station.get('distance_to_star', 0) > distance_to_star:
             continue
+
 
         # all filters passed, appending station
         ap_station = Station(sid=station.get("id"), name=station.get("name"))
