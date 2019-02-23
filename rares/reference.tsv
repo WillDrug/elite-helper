@@ -1,139 +1,131 @@
-System;Port;Commodity;Allocation
-16 Lyrae;Budrys Ring;Lyrae Weed;10
-17 Lyrae;Langford Enterprise;Ultra-Compact Processor;1
-36 Ophiuchi;Katzenstein Dock;Ophiuch Exino Artefacts;7
-38 Virginis;Bamford Ring;Baked Greebles;17
-39 Tauri;Porta;Tauri Chimes;17
-47 Ceti;Glushko Station;Aepyornis Egg;5
-47 Ceti;Kaufmanis Hub;Ceti Rabbits;12
-9 Aurigae;Hunt Enterprise;Saxon Wine;13
-Aegaeon;Schweikart Station;Chateau De Aegaeon;14
-Aerial;Andrade Legacy;Eden Apples Of Aerial;15
-Alacarakmo;Weyl Gateway;Alacarakmo Skin Art;24
-Aganippe;Julian Market;Aganippe Rush;10
-Alpha Centauri;Hutton Orbital;Centauri Mega Gin;7
-Alpha Centauri;Hutton Orbital;The Hutton Mug;30
-Altair;Solo Orbiter;Altairian Skin;15
-Alya;Malaspina Gateway;Alya Body Soap;16
-Anduliga;Celsius Estate;Anduliga Fire Works;16
-Any Na;Libby Orbital;Any Na Coffee;11
-Arque;Baird Gateway;Shan's Charis Orchid;7
-Arouca;Shipton Orbital;Arouca Conventual Sweets;12
-AZ Cancri;Fisher Station;Az Cancri Formula 42;8
-Baltah'Sine;Baltha'sine Station;Baltah'sine Vacuum Krill;18
-Banki;Antonio de Andrade Vista;Banki Amphbious Leather;18
-Bast;Hart Station;Bast Snake Gin;10
-Belalans;Boscovich Ring;Belalans Ray Leather;11
-Bento;Snow Moon;Crystalline Spheres;12
-Borasetani;Katzenstien Terminal;Borasetani Pathogenetics;6-10
-CD-75 661;Kirk Dock;CD-75 Kitten Brand Coffee;12
-Cherbones;Chalker Landing;Cherbones Blood Crystals;48
-Chi Eridani;Steve Masters Station;Chi Eridani Marine Paste;18
-Colonia;Jaques Station;Jaques Queintian Still;26
-Coquim;Hirayama Installation;Coquim Spongiform Victuals;20
-Crom;Chorel Survey;Crom Silver Fesh;17
-Damna;Nemere Market;Damna Carapaces;23
-Dea Motrona;Pinzon Dock;Motrona Experience Jelly;11
-Delta Pavonis;Hooper Relay;Pavonis Ear Grubs;30
-Delta Phoenicis;Trading Post;Delta Phoenicis Palms;17
-Deuringas;Shukor Hub;Deuringas Truffles;7
-Diso;Shifnalport;Diso Ma Corn;15
-Eleu;Finney Dock;Eleu Thermals;13
-Epsilon Indi;Mansfield Orbiter;Indi Bourbon;*
-Eranin;Azeban City;Eranin Pearl Whisky;8
-Eshu;Shajn Terminal;Eshu Umbrellas;9
-Esuseku;Savinykh Orbital;Esuseku Caviar;10
-Ethgreze;Bloch Station;Ethgreze Tea Buds;7
-Fujin;Futen Spaceport;Fujin Tea;5
-Fullerene C60;Rebuy Prospect;Bucky Ball Beer Mats;25
-Geawen;Obruchev Legacy;Geawen Dance Dust;23
-George Pantazis;Zamka Platform;Pantaa Prayer Sticks;22
-Geras;Yurchikhin Port;Gerasian Gueuze Beer;27
-Gilya;Bell Orbital;Gilya Signature Weapons;9
-Goman;Gustav Sporer Port;Goman Yaupon Coffee;16
-Haiden;Searfoss Enterprise;Haiden Black Brew;14
-Harma;Gabriel Enterprise;Harma Silver Sea Rum;14
-Havasupai;Lovelace Port;Havasupai Dream Catcher;4
-Hecate;RJH1972;Live Hecate Sea Worms;13
-Heike;Brunel City;Ceremonial Heike Tea;8
-Helvetitj;Friend Orbital;Helvetitj Pearls;6
-HIP 10175;Stefanyshyn-Piper Station;HIP 10175 Bush Meat;13
-HIP 112974;La Cosa City;Onionhead Beta Strain;10
-HIP 118311;Lubbock Market;HIP 118311 Swarm;1
-HIP 41181;Andersson Station;HIP Proto-Squid;14
-HIP 59533;Burnham Beacon;Burnham Bile Distillate;
-HIP 80364;Stasheff Colony;HIP Organophosphates;17
-Holva;Kreutz Orbital;Holva Duelling Blades;
-HR 7221;Veron City;HR 7221 Wheat;16
-Irukama;Blaauw City;Giant Irukama Snails;16
-Jaradharre;Gohar Station;Jaradharre Puzzle Box;4
-Jaroua;Mccool City;Jaroua Rice;18
-Jotun;Icelock;Jotun Mookah;10
-Kachirigin;Nowak Orbital;Kachirigin Filter Leeches;10
-Kamitra;Hammel Terminal;Kamitra Cigars;23
-Kamorin;Godwin Vision;Kamorin Historic Weapons;10
-Kappa Fornacis;Harvestport;Onion Head;8
-Karetii;Sinclair Platform;Karetii Couture;5
-Karsuki Ti;West Market;Karsuki Locusts;18
-Kinago;Fozard Ring;Kinago Violins;3
-Kongga;Laplace Ring;Kongga Ale;16
-Korro Kung;Lonchakov Orbital;Koro Kung Pellets;20
-Lave;Lave Station;Lavian Brandy;12
-Leesti;George Lucas;Leestian Evil Juice;14
-Leesti;George Lucas;Azure Milk;7
-LFT 1421;Ehrlich Orbital;Void Extract Coffee;
-LDS 883;Smith Reserve;Chameleon Cloth;7
-LHS 3447;Bluford Orbital;Galactic Travel Guides;10
-LP 375-25;King Gateway;Honesty Pills;13
-LTT 8517;Euclid Terminal;Non Euclidian Exotanks;16
-LTT 9360;Smeaton Orbital;LTT Hyper Sweet;19
-Mechucos;Brandenstein Port;Mechucos High Tea;12
-Medb;Vela Dock;Medb Starlube;18
-Mokojing;Noli Terminal;Mokojing Beast Feast;7
-Momus Reach;Tartarus Point;Momus Bog Spaniel;7
-Mukusubii;Ledyard Dock;Mukusubii Chitin-Os;15
-Mulachi;Clark Terminal;Mulachi Giant Fungus;22
-Nahuatl;Artzybasheff Terminal;Platinum Alloy;13
-Neritus;Toll Ring;Neritus Berries;13
-Ngadandari;Consolmagno Horizons;Ngadandari Fire Opals;6
-Ngurii;Cheranovsky City;Soontill Relics;5
-Nguna;Biggle Hub;Nguna Modern Antiques;4
-Njambalba;Frost Dock;Personal Gifts;20
-Njangari;Lee Hub;Njangari Saddles;13
-Ochoeng;Roddenberry Gateway;Ochoeng Chillies;14
-Orrere;Sharon Lee Free Market;Orrerian Vicious Brew;16
-Phiagre;Greeboski's Outpost;Giant Verrix;6
-Quechua;Crown Ring;Albino Quechua Mammoth Meat;10
-Rajukru;Snyder Terminal;Rajukru Multi-Stoves;17
-Rapa Bao;Flagg Gateway;Rapa Bao Snake Skins;11
-Rusani;Fernandes Market;Rusani Old Smokey;10
-Sanuma;Dunyach Gateway;Sanuma Decorative Meat;7
-Shinrarta Dezhra;Jameson Memorial;Waters of Shintara;6
-Sothis;Newholm Station;Sothis Crystalline Gold;20
-Tarach Tor;Tranquillity;Tarach Spice;12
-Tanmark;Cassie-L-Peia;Lucan Onion Head;8
-Tanmark;Cassie-L-Peia;Tanmark Tranquil Tea;9
-Terra Mater;Gr8minds;Terra Mater Blood Bores;5
-Thrutis;Kingsbury Dock;Thrutis Cream;11
-Tiegfries;Larbalestier Dock;Tiegfries Synthsilk;30
-Tiolce;Gordon Terminal;Tiolce Waste2Paste Units;13
-Toxandji;Tsunenaga Orbital;Toxandji Virocide;14
-Uszaa;Guest Installation;Uszaian Tree Grub;14
-Utgaroar;Fort Klarix;Utgaroar Millennial Eggs;15
-Uzumoku;Sverdrup Ring;Uzumoku Low-G Wings;8
-V1090 Herculis;Kaku Plant;V Herculis Body Rub;10
-Vanayequi;Clauss Hub;Vanayequi Ceratomorpha Fur;10
-Vega;Taylor City;Vega Slimweed;28
-Vidavanta;Lee Mines;Vidavantian Lace;
-Viracocha;Pataarchy Corporate;Master Chefs;26
-Volkhab;Vernadsky Dock;Volkhab Bee Drones;6
-Wolf 1301;Saunders's Dive;Wolf Fesh;13
-Wheemete;Eisinga Enterprise;Wheemete Wheat Cakes;
-Witchhaul;Hornby Terminal;Witchhaul Kobe Beef;18
-Wulpa;Williams Gateway;Wulpa Hyperbore Systems;10
-Wuthielo Ku;Tarter Dock;Wuthielo Ku Froth;17
-Xelabara;Navigator Market;Onionhead Alpha Strain;6-10
-Xihe;Zhen Dock;Xihe Biomorphic Companions;10
-Yaso Kondi;Wheeler Market;Yaso Kondi Leaf;5
-Zaonce;Ridley Scott;Leathery Eggs;1
-Zeessze;Nicollier Hanger;Zeessze Ant Grub Glue;18
+Commodity;System;Port
+Aepyornis Egg;47 Ceti;Glushko Station
+Aganippe Rush;Aganippe;Julian Market
+Alacarakmo Skin Art;Alacarakmo;Weyl Gateway
+Albino Quechua Mammoth;Quechua;Crown Ring
+Altairian Skin;Altair;Solo Orbiter
+Alya Body Soap;Alya;Malaspina Gateway
+Anduliga Fire Works;Anduliga;Celsius Estate
+Any Na Coffee;Any Na;Libby Orbital
+Arouca Conventual Sweets;Arouca;Shipton Orbital
+AZ Cancri Formula 42;AZ Cancri;Fisher Station
+Azure Milk;Leesti;George Lucas
+Baltah Sine Vacuum Krill;BaltahSine;Baltha'Sine Station
+Banki Amphibious Leather;Banki;Antonio de Andrade Vista
+Bast Snake Gin;Bast;Hart Station
+Belalans Ray Leather;Belalans;Boscovich Ring
+Borasetani Pathogenetics;Borasetani;Katzenstein Terminal
+Burnham Bile Distillate;HIP 59533;Burnham Beacon
+CD-75 Kitten Brand Coffee;CD-75 661;Kirk Dock
+Centauri Mega Gin;Alpha Centauri;Hutton Orbital
+Ceremonial Heike Tea;Heike;Brunel City
+Ceti Rabbits;47 Ceti;Kaufmanis Hub
+Chameleon Cloth;LDS 883;Smith Reserve
+Chateau De Aegaeon;Aegaeon;Schweickart Station
+Cherbones Blood Crystals;Cherbones;Chalker Landing
+Chi Eridani Marine Paste;Chi Eridani;Steve Masters
+Coquim Spongiform Victuals;Coquim;Hirayama Installation
+Crom Silver Fesh;Crom;Chorel Survey
+Crystalline Spheres;Bento;Snow Moon
+Damna Carapaces;Damna;Nemere Market
+Delta Phoenicis Palms;Delta Phoenicis;Trading Post
+Deuringas Truffles;Deuringas;Shukor Hub
+Diso Ma Corn;Diso;Shifnalport
+Eden Apples Of Aerial;Aerial;Andrade Legacy
+Eleu Thermals;Eleu;Finney Dock
+Eranin Pearl Whiskey;Eranin;Azeban City
+Eshu Umbrellas;Eshu;Shajn Terminal
+Esuseku Caviar;Esuseku;Savinykh Orbital
+Ethgreze Tea Buds;Ethgreze;Bloch Station
+Fujin Tea;Fujin;Futen Spaceport
+Galactic Travel Guides;LHS 3447;Bluford Orbital
+Geawen Dance Dust;Geawen;Obruchev Legacy
+Gerasian Gueuze Beer;Geras;Yurchikhin Port
+Giant Irukama Snails;Irukama;Blaauw City
+Giant Verrix;Phiagre;Greeboski's Outpost
+Gilya Signature Weapons;Gilya;Bell Orbital
+Goman Yaupon Coffee;Goman;Gustav Sporer Port
+Haidne Black Brew;Haiden;Searfoss Enterprise
+Havasupai Dream Catcher;Havasupai;Lovelace Port
+Helvetitj Pearls;Helvetitj;Friend Orbital
+HIP 10175 Bush Meat;HIP 10175;Stefanyshyn-Piper Station
+HIP 118311 Swarm;HIP 118311;Lubbock Market
+HIP Organophosphates;HIP 80364;Stasheff Colony
+HIP Proto-Squid;HIP 41181;Andersson Station
+Holva Duelling Blades;Holva;Kreutz Orbital
+Honesty Pills;LP 375-25;King Gateway
+HR 7221 Wheat;HR 7221;Veron City
+Indi Bourbon;Epsilon Indi;Mansfield Orbiter
+Jaques Quinentian Still;Colonia;Jaques Station
+Jaradharre Puzzle Box;Jaradharre;Gohar Station
+Jaroua Rice;Jaroua;McCool City
+Jotun Mookah;Jotun;Icelock
+Kachirigin Filter Leeches;Kachirigin;Nowak Orbital
+Kamitra Cigars;Kamitra;Hammel Terminal
+Kamorin Historic Weapons;Kamorin;Godwin Vision
+Karetii Couture;Karetii;Sinclair Platform
+Karsuki Locusts;Karsuki Ti;West Market
+Kinago Violins;Kinago;Fozard Ring
+Kongga Ale;Kongga;Laplace Ring
+Koro Kung Pellets;Korro Kung;Lonchakov Orbital
+Lavian Brandy;Lave;Lave Station
+Leathery Eggs;Zaonce;Ridley Scott
+Leestian Evil Juice;Leesti;George Lucas
+Live Hecate Sea Worms;Hecate;RJH1972
+LTT Hypersweet;LTT 9360;Smeaton Orbital
+Lucan Onion Head;Tanmark;Cassie-L-Peia
+Master Chefs;Noti;Weber Gateway
+Mechucos High Tea;Mechucos;Brandenstein Port
+Medb Starlube;Medb;Vela Dock
+Mokojing Beast Feast;Mokojing;Noli Terminal
+Momus Bog Spaniel;Momus Reach;Tartarus Point
+Motrona Experience Jelly;Dea Motrona;Pinzon Dock
+Mukusubii Chitin-Os;Mukusubii;Ledyard Dock
+Mulachi Giant Fungus;Mulachi;Clark Terminal
+Neritus Berries;Neritus;Toll Ring
+Ngadandari Fire Opals;Ngadandari;Napier Terminal
+Nguna Modern Antiques;Nguna;Biggle Hub
+Njangari Saddles;Njangari;Lee Hub
+Non Euclidian Exotanks;LTT 8517;Euclid Terminal
+Ochoeng Chillies;Ochoeng;Roddenberry Gateway
+Onion Head;Kappa Fornacis;Harvestport
+Onionhead Alpha Strain;Xelabara;Navigator Market
+Onionhead Beta Strain;HIP 112974;la Cosa City
+Ophiuch Exino Artefacts;36 Ophiuchi;Katzenstein Dock
+Orrerian Vicious Brew;Orrere;Sharon Lee Free Market
+Pantaa Prayer Sticks;George Pantazis;Zamka Platform
+Pavonis Ear Grubs;Delta Pavonis;Hooper Relay
+Personal Gifts;Njambalba;Frost Dock
+Rajukru Multi-Stoves;Rajukru;Snyder Terminal
+Rapa Bao Snake Skins;Rapa Bao;Flagg Gateway
+Rusani Old Smokey;Rusani;Fernandes Market
+Sanuma Decorative Meat;Sanuma;Dunyach Gateway
+Shans Charis Orchid;Arque;Baird Gateway
+Soontill Relics;Ngurii;Cheranovsky City
+Sothis Crystalline Gold;Sothis;Newholm Station
+Tanmark Tranquil Tea;Tanmark;Cassie-L-Peia
+Tarach Spice;Tarach Tor;Tranquillity
+Tauri Chimes;Tarach Tor;Tranquillity
+Terra Mater Blood Bores;Terra Mater;GR8Minds
+The Hutton Mug;Alpha Centauri;Hutton Orbital
+Thrutis Cream;Thrutis;Kingsbury Dock
+Tiolce Waste2Paste Units;Tiolce;Gordon Terminal
+Toxandji Virocide;Toxandji;Tsunenaga Orbital
+Ultra-Compact Processor;17 Lyrae;Langford Enterprise
+Uszaian Tree Grub;Uszaa;Guest Installation
+Utgaroar Millennial Eggs;Utgaroar;Fort Klarix
+Uzumoku Low-G Wings;Uzumoku;Sverdrup Ring
+V Herculis Body Rub;V1090 Herculis;Kaku Plant
+Vanayequi Ceratomorpha Fur;Vanayequi;Clauss Hub
+Vega Slimweed;Vega;Taylor City
+Vidavantian Lace;Vidavanta;Lee Mines
+Void Extract Coffee;LFT 1421;Ehrlich Orbital
+Volkhab Bee Drones;Volkhab;Vernadsky Dock
+Waters Of Shintara;Shinrarta Dezhra;Jameson Memorial
+Wheemete Wheat Cakes;Wheemete;Eisinga Enterprise
+Witchhaul Kobe Beef;Witchhaul;Hornby Terminal
+Wolf Fesh;Wolf 1301;Saunders's Dive
+Wulpa Hyperbore Systems;Wulpa;Williams Gateway
+Wuthielo Ku Froth;Wuthielo Ku;Tarter Dock
+Xihe Biomorphic Companions;Xihe;Zhen Dock
+Yaso Kondi Leaf;Yaso Kondi;Wheeler Market

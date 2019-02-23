@@ -1,4 +1,6 @@
+import progressbar as pb
 # todo: cache this
+import sys
 from time import time
 import pickle
 import requests
@@ -27,6 +29,8 @@ class EDDB:
     def __init__(self):
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
         self.logger = logging.getLogger('EDDB_Base')
+        self.logger.handlers = []
+        self.logger.addHandler(logging.StreamHandler(stream=sys.stdout))
         self.logger.setLevel(logging.INFO)
         try:
             self.config = pickle.load(open(f'{self.dir_path}/data/config.pcl', 'rb+'), encoding='utf-8')
@@ -46,10 +50,13 @@ class EDDB:
         self.logger.debug(f'{api} status code is {response.status_code}')
         if response.status_code != 200:
             return False
-
+        bar = pb.ProgressBar(max_value=pb.UnknownLength)
+        bar.start()
         with open(f'{self.dir_path}/data/{api}', 'w+', encoding='utf-8') as handle:  # todo, fix paths
             for block in response.iter_content(1024):
                 handle.write(block.decode('utf-8'))
+                bar.update(bar.value + 1)
+        bar.finish()
         self.ccset(api, time())
         return True
 
@@ -65,30 +72,36 @@ class EDDB:
             self.logger.info(f'Recaching {api}')
             self.load_data(api)
             self.save_config()
+            return True
+        else:
+            return False
 
     def recache_all(self):
         for api in self.api_names:
             self.recache(api)
 
+    def clean(self, api):
+        os.remove(f'{self.dir_path}/data/{api}')
 
     def save_config(self):
         pickle.dump(self.config, open(f'{self.dir_path}/data/config.pcl', 'wb+'))  # todo; fix paths
 
-    def read(self, api):
+    def read_object(self, api):
         if api not in self.api_names:
             raise ModuleNotFoundError
         f = open(f'{self.dir_path}/data/{api}', 'r', encoding='utf-8')
-        return f.read()
+        return f
+
+    def read(self, api):
+        return self.read_object(api).read()
 
     def read_iter(self, api):
-        if api not in self.api_names:
-            raise ModuleNotFoundError
-        f = open(f'{self.dir_path}/data/{api}', 'r', encoding='utf-8')
-        return FileReader(f)
+        return FileReader(self.read_object(api), os.path.getsize(f'{self.dir_path}/data/{api}'))
 
 class FileReader:
-    def __init__(self, f):
+    def __init__(self, f, size):
         self.f = f
+        self.size = size
 
     def __iter__(self):
         return self
@@ -100,4 +113,4 @@ class FileReader:
             raise StopIteration
         return l
 
-eddb = EDDB()
+eddb_prime = EDDB()

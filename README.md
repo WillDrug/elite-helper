@@ -11,12 +11,19 @@ Helper App for Elite Dangerous, not trying to create another database, but a per
 2) Log parser
 3) EDDB\EDDN connection, etc
 4) interface up after the initial release
+5) do more DRY 
+6) microservice up and cache data into DB with async updates
+7) do profit reports after trader has concluded
+8) create exploration helper
+9) create 
 
 # Structure
-* **listener.py**: Starts a loop listening to Elite logs and parsing them to storage
-* **\_\_elite\_\_**: Connects to Elite logs, listening for events, later will connect to EDDB\EDMC\etc.
-* **\_\_storage\_\_**: Connects to a background running DB, hold ORM classes
-* **\_\_??\_\_**
+* **helper.py**: Starts up telegram bot to get commands and such
+* **eddb**: Connects and parses EDDB
+* **eddi**: Connects to voiceoutput of specially configured EDDI
+* **rares**: weird graph-based classes to track buying and selling rare goods and also making money with each trip
+* **edts**: what?
+* **bot**: contains the afformentioned telgram bot
 
 
 # Notes
