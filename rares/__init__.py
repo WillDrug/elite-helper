@@ -438,10 +438,13 @@ class RareLoader:
         if not node:
             system_o = System(name=system)
             station_o = Station(name=station)
+            logger.info(f'Populating system {system}')
             if not system_o.populate():
-                raise LookupError(f'Failed to find system {system}')
-            if not station_o.populate(system_id=system_o.id):
-                raise LookupError(f'Failed to find station {station}')
+                raise LookupError(f'Failed to find system :{system}:')
+            print(system_o.name, system_o.id)
+            logger.info(f'Populating station {station} with ref as {system_o.id}')
+            if not station_o.populate(system_id=system_o.id):  # TODO: there are duplicate system names. try consulting simbad_ref field and parse the whole file on a .populate() sweep
+                raise LookupError(f'Failed to find station :{station}:')
             do_buy = False
             self.route.append((system_o, station_o))
         else:

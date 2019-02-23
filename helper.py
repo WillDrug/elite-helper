@@ -20,7 +20,7 @@ di = EDDI()
 
 
 for update in di.update_generator():
-    update = update.split(';')
+    update = update.strip().split(';')
     # switch event
     if update[0] == 'docked':
         system = update[1]
