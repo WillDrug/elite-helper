@@ -1,3 +1,4 @@
+from time import time
 from eddb import eddb_prime
 from eddb.commodity import Commodities
 from eddb.progress_tracker import generate_bar
@@ -112,6 +113,10 @@ class StationPriceList:
                     current_best = cm
                     max_diff = cm - ref
         return current_best, max_diff
+
+    def updated(self):
+        updates = [(time() - q.timestamp)/60/60 for q in self.listings]
+        return sum(updates)/updates.__len__()
 
     def __unicode__(self):
         return self.__str__()

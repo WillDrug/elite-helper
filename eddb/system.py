@@ -49,6 +49,9 @@ class System:
         self.id = sid
         self.name = name
 
+    def __eq__(self, other):
+        return self.id == other.id
+
     def _populate(self, sid, name, x, y, z, allegiance, needs_permit, updated_at):
         self.id = int(sid)
         self.name = name.replace('"', '')

@@ -17,6 +17,7 @@ class Commodities:
             commodity['mbp'] = entry.get('min_buy_price')
             commodity['id'] = entry.get('id')
             commodity['is_marketable'] = True if entry.get('is_non_marketable') == 0 else False
+            commodity['is_rare'] = True if entry.get('is_rare', 0) == 1 else False
             self.reference.append(commodity)
 
     def buyable(self, cid):

@@ -5,7 +5,7 @@ import argparse
 import sys, os
 from rares import RareLoader, RareGraph, RareNode
 from time import time, sleep
-from terminaltables import AsciiTable
+from terminaltables import AsciiTable, DoubleTable
 from eddb.commodity import Commodities
 from eddb.system import System
 from eddb.station import Station
@@ -34,16 +34,17 @@ di = EDDI()
 # load up current inventory:
 
 class Context:
-    def __init__(self, s='L', d=50000, f=True, **kwargs):
-        self.rare_controller = RareLoader()
+    def __init__(self, s='L', d=50000, f=True, p=150, **kwargs):
+        self.rare_controller = RareLoader(sell_distance=p)
         self.rare_controller.init(ship_size=s, max_distance_from_star=d, filter_needs_permit=f)
         self.current = {'system': None, 'station': None, 'node': None, 'rare_commodity': None}
         self.route = []
         self.cargo = dict()
         self.generated_route = []  # todo: generate route
         self.profit = 0
-
+        self.proposed = []
         self.commodity_controller = Commodities()
+        self.rare_holder = {}
 
 
     def docked(self, system, station):
@@ -56,7 +57,7 @@ class Context:
             system_o.populate()
             station_o = Station(name=station)
             station_o.populate(system_id=system_o.id)
-        if self.generated_route is None:
+        if self.generated_route.__len__() == 0:  # TODO: route-regen command
             self.generated_route = self.rare_controller.generate(system_o, station_o, node=node)  # add route generation
         self.current = {
             'system': system_o,
@@ -65,12 +66,20 @@ class Context:
             'rare_commodity': None
         }
         self.route.append(self.current)
-        self.proposed = self.rare_controller.alternative_determine_next(self.current['system'], self.current['station'])
+        self.proposed = self.rare_controller.alternative_determine_next(self.current['system'], self.current['station'], visited=[self.rare_holder[k] for k in self.rare_holder])
 
-    def buy(self, commodity_name, amount):
-        test = self.commodity_controller.get_by_name(commodity_name)
-        if test is None and self.current['node'] is not None:
-            self.current['rare_commodity'] = commodity_name
+    def buy(self, commodity_name, amount, eddbid):
+        if eddbid is None:
+            test = self.commodity_controller.get_by_name(commodity_name)
+            if (test is None or test.get('is_rare')) and self.current['node'] is not None:
+                self.current['rare_commodity'] = commodity_name
+                self.rare_holder[commodity_name] = self.current['node']
+        else:
+            rare = self.commodity_controller.get_by_id(eddbid)
+            if rare is not None and rare["is_rare"]:
+                self.rare_holder[commodity_name] = self.current['node']
+            elif rare is None:
+                self.rare_holder[commodity_name] = self.current['node']
 
         if commodity_name not in self.cargo.keys():
             self.cargo[commodity_name] = amount
@@ -78,29 +87,75 @@ class Context:
             self.cargo[commodity_name] += amount
 
 
-    def sell(self, commodity_name, amount, profit):
+    def sell(self, commodity_name, amount, profit, eddbid):
         if commodity_name in self.cargo.keys():
-            commodity_name['amount'] -= amount
+            self.cargo[commodity_name] -= amount
+            if self.cargo[commodity_name] <= 0:
+                del self.cargo[commodity_name]
+                if commodity_name in self.rare_holder.keys():
+                    del self.rare_holder[commodity_name]
         self.profit += profit
 
 
     def draw(self):
         os.system('cls')
         header_table_data = [['System', 'Station', 'Node', 'Buy Rare', 'Profit'],
-                             [self.current['system'], self.current['station'], self.current['node'],
+                             [None if self.current['system'] is None else self.current['system'].name,
+                              None if self.current['station'] is None else self.current['station'].name,
+                              self.current['node'],
                               None if self.current['node'] is None else self.current['node'].name, self.profit]]
         header_table_data[0] = [AsciiControl.HEADER+q+AsciiControl.ENDC for q in header_table_data[0]]
         header_table = AsciiTable(header_table_data)
+        header_table.title = 'Current Info'
         print(header_table.table)
 
-        info_table = [['Cargo', 'Route', 'Pre-generated route', 'Proposed Jumps']]
-        info_table[0] = [AsciiControl.HEADER + q + AsciiControl.ENDC for q in info_table[0]]
+        info_table_data = [['Cargo', 'Route', 'Generated Jump', 'Generated Commodity', 'Proposed Jump', 'Proposed Commodity']]
+        info_table_data[0] = [AsciiControl.HEADER + q + AsciiControl.ENDC for q in info_table_data[0]]
+        for commodity, made_step, loop_step, proposed_step in itertools.zip_longest(self.cargo, self.route, self.generated_route, self.proposed):
+            commodity_text = ''
+            if commodity is not None:
+                commodity_text = f'{AsciiControl.OKGREEN if commodity in self.rare_holder.keys() else AsciiControl.OKBLUE}{commodity}{AsciiControl.ENDC} ({self.cargo[commodity]})'
+                if commodity in self.rare_holder.keys():
+                    dst = self.rare_controller.check_sell(self.current["system"], self.rare_holder[commodity])
+                    if dst is not None:
+                        commodity_text += f'{AsciiControl.WARNING}Sellable {dst}{AsciiControl.ENDC}'
+            made_step_text = ''
+            if made_step is not None:
+                made_step_text = f'{AsciiControl.UNDERLINE}{made_step["system"].name}:{made_step["station"].name}{AsciiControl.ENDC} (Rare: {None if made_step["node"] is None else AsciiControl.OKGREEN + made_step["node"].name + AsciiControl.ENDC})'
+            loop_step_text = ''
+            loop_step_commodity = ''
+            if loop_step is not None:
+                loop_step_text = f'{AsciiControl.OKGREEN + loop_step["node"].name + AsciiControl.ENDC} at {AsciiControl.UNDERLINE}{loop_step["node"].system.name}:{loop_step["node"].station.name}{AsciiControl.ENDC} ({round(loop_step["distance"], 2)})'
+                if loop_step["profit"] is not None and loop_step["profit"] > 0:
+                    loop_step_commodity = f'{AsciiControl.OKBLUE + loop_step["commodity"].name + AsciiControl.ENDC} for {AsciiControl.OKGREEN if loop_step["profit"] > 1000 else AsciiControl.OKBLUE}{loop_step["profit"]}{AsciiControl.ENDC} Cz profit ({round(loop_step["updated"], 2)} h)'
+            proposed_step_text = ''
+            proposed_step_commodity = ''
+            if proposed_step is not None:
+                proposed_step_text = f'{AsciiControl.OKGREEN + proposed_step["commodity"] + AsciiControl.ENDC} at {AsciiControl.UNDERLINE}{proposed_step["system"]}:{proposed_step["station"]}{AsciiControl.ENDC} ({round(proposed_step["distance"], 2)} LY);'
+                if proposed_step["profit"] is not None and proposed_step["profit"] > 0:
+                    proposed_step_commodity = f'{AsciiControl.OKBLUE + proposed_step["buy"] + AsciiControl.ENDC} for {AsciiControl.OKGREEN if proposed_step["profit"] > 1000 else AsciiControl.OKBLUE}{proposed_step["profit"]}{AsciiControl.ENDC} Cz profit ({round(proposed_step["updated"], 2)} h)'
+            info_table_data.append([commodity_text, made_step_text, loop_step_text, loop_step_commodity, proposed_step_text, proposed_step_commodity])
+        info_table = AsciiTable(info_table_data)
+        info_table.inner_row_border = True
+        info_table.title = 'Stats'
+        if info_table.ok:
+            print(info_table.table)
+        else:
+            info_table_data_one = [q[:2] for q in info_table_data]
+            info_table_data_two = [q[2:] for q in info_table_data]
+            table_one = AsciiTable(info_table_data_one)
+            table_one.inner_row_border = True
+            table_two = AsciiTable(info_table_data_two)
+            table_two.inner_row_border = True
 
+            print(table_two.table)
+            print(table_one.table)
 
 
 
     def run(self):
         self.draw()
+        self.__listener()
 
     def __listener(self):
         for update in di.update_generator():
@@ -109,9 +164,17 @@ class Context:
             if update[0] == 'docked':
                 self.docked(update[1], update[2])
             elif update[0] == 'buy':
-                self.buy(update[1], int(update[2]))
+                try:
+                    eddb_id = int(update[3])
+                except ValueError:
+                    eddb_id = None
+                self.buy(update[1], int(update[2]), eddb_id)
             elif update[0] == 'sell':
-                self.sell(update[1], int(update[2]), int(update[3]))
+                try:
+                    eddb_id = int(update[4])
+                except ValueError:
+                    eddb_id = None
+                self.sell(update[1], int(update[2]), int(update[3]), eddb_id)
             elif update[0] == 'exit':
                 self.shutdown()
                 break
@@ -120,6 +183,8 @@ class Context:
                 if command == 'q':
                     self.shutdown()
                     break
+                elif command == 'r':
+                    self.generated_route = self.rare_controller.generate(self.current["system"], self.current["station"], node=self.current["node"])
             self.draw()
         di.shutdown()
 
@@ -128,11 +193,14 @@ class Context:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', choices=['L', 'M', 'None'], help='Ship size', default=None)
-    parser.add_argument('-d', type=int, help='Maximum distance from star', default=None)
-    parser.add_argument('-f', type=bool, help='Fitler permit requiring systems', default=None)
+    parser.add_argument('-s', choices=['L', 'M', 'None'], help='Ship size', default='L')
+    parser.add_argument('-d', type=int, help='Maximum distance from star', default=50000)
+    parser.add_argument('-f', type=bool, help='Fitler permit requiring systems', default=True)
     parser.add_argument('-n', type=bool, help='Force a new session', default=False)
+    parser.add_argument('-p', type=int, help='Selling distance for rares', default=150)
     args = parser.parse_args()
 
     cnt = Context(**args.__dict__)
     cnt.run()
+    # cnt.docked('Chona', 'Smoot Station')
+    # print(cnt.proposed)

@@ -15,15 +15,17 @@ from eddb.commodity import Commodities
 logger = logging.getLogger('RareGraph')
 logger.handlers = []
 logger.addHandler(logging.StreamHandler(stream=system_module_lol.stdout))
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
-
+commodity_controller = Commodities()
 
 class RareNode:
     def __init__(self, name: str, system: System, station: Station, prices: StationPriceList, terminus=False, echo=False):
         # graph literally has no reason to be two-way. why? no idea
         self.terminus = terminus
         self.name = name
+        if name is not None:
+            self.commodity = commodity_controller.get_by_name(name)
         self.system = system
         self.station = station
         self.prices = prices
@@ -120,6 +122,8 @@ class RareGraph:
             bar.update(bar.value + 1)
         bar.finish()
 
+
+
     def insert(self, node):
         # three passes to link the node
         logger.info(f'Parsing {node.name}')
@@ -211,16 +215,130 @@ class RareGraph:
                 return node
         return None
 
-class RareLoader:
-    def __init__(self):
-        pass
+    def closest(self, system):
+        distance = system.distance(self.nodes[0].system)
+        ref = self.nodes[0]
+        for node in self.nodes:
+            chk = system.distance(node.system) < distance
+            if chk < distance:
+                ref = node
+                distance = chk
+        return ref
 
-    def process_cargo(self, cargo):
-        logger.info(f'Checking :{cargo}:')
-        for node in self.graph.nodes:
-            if node.name == cargo:
-                logger.info(f'Appended a node for {cargo}')
-                self.visited.append(node)
+    def __generate(self, route, visited, sell_distance=150):
+        os.system('cls')
+        print([r["node"].system.name for r in route])
+        visited.append(route[-1]["node"])  # append current node to visited nodes
+        # determine list of possible next nodes
+        possible_next_jump = [route[-1]["node"].link_x_forward, route[-1]["node"].link_x_backward,
+                     route[-1]["node"].link_y_forward, route[-1]["node"].link_y_backward,
+                     route[-1]["node"].link_z_forward, route[-1]["node"].link_z_backward]
+        # clear terminus
+        possible_next_jump = [jump for jump in possible_next_jump if not jump.terminus]
+        # filter visited which should be sold
+        filtered_visited = []
+        bar = generate_bar(visited.__len__(), 'Removing sellable visited')
+        bar.start()
+        for visit in visited:
+            if visit.system.distance(route[-1]["node"].system) > sell_distance:
+                filtered_visited.append(visit)
+            bar.update(bar.value + 1)
+        bar.finish()
+        for filter in filtered_visited:
+            visited.pop(visited.index(filter))
+        # filter by distance
+        to_skip = []
+        bar = generate_bar(possible_next_jump.__len__(), 'Filtering visited by closing distance')
+        bar.start()
+        for jump in possible_next_jump:
+            for visit in visited:
+                if visit.system.distance(route[-1]["node"].system) > visit.system.distance(jump.system):
+                    to_skip.append(jump)
+            bar.update(bar.value + 1)
+        possible_next_jump = [jump for jump in possible_next_jump if jump not in to_skip]
+        bar.finish()
+
+        # if none are left - return false, we've hit a dead-end
+
+        if possible_next_jump.__len__() == 0:
+            print('Route terminal')
+            # exclude oneself from route
+            route.pop()
+            # exclude oneself from visited
+            visited.pop()
+            # return visited nodes
+            for filter in filtered_visited:
+                visited.append(filter)
+            return False
+
+        # if any have been visited: loop is complete!
+        bar = generate_bar(possible_next_jump.__len__(), 'Checking loop possibility')
+        bar.start()
+        for jump in possible_next_jump:
+            if jump in [r["node"] for r in route]:
+                print('Loop complete!')
+                profits = route[-1]["node"].prices - jump.prices
+                route.append({"node": jump, "distance": route[-1]["node"].system.distance(jump.system),
+                              "commodity": profits[0], "profit": profits[1], "updated": jump.prices.updated()})
+                """({"node": jump["node"], "distance": jump["node"].system.distance(route[-1]["node"].system, ),
+                  "commodity": jump["commodity"], "profit": jump["profit"],
+                  "updated": jump["node"].prices.updated()})"""
+                return True
+            bar.update(bar.value + 1)
+        bar.finish()
+
+        # check profits:
+        bar = generate_bar(possible_next_jump.__len__(), 'Populating prices')
+        bar.start()
+        jumps_and_profits = []
+        for jump in possible_next_jump:
+            comm_data = route[-1]["node"].prices - jump.prices
+            jumps_and_profits.append({"node": jump, "profit": comm_data[1], "commodity": comm_data[0]})
+            bar.update(bar.value + 1)
+        jumps_and_profits = sorted(jumps_and_profits, key=lambda x: x["profit"])
+        bar.finish()
+        # else take the best profit one and re-run GENERATE (doing this in a loop here
+        for jump in jumps_and_profits:
+            route.append({"node": jump["node"], "distance": jump["node"].system.distance(route[-1]["node"].system),
+                          "commodity": jump["commodity"], "profit": jump["profit"],
+                          "updated": jump["node"].prices.updated()})
+            loop = self.__generate(route, visited=visited, sell_distance=sell_distance)
+            if loop:  # if we have looped somewhere down the line, current route is cool
+                return loop
+            # if it returns False, the previous node corrected itself, try next highest profit one
+        # this loop on the first node will guarantee that if there's a loop it will get created.
+
+        # if all failed to loop re-run for the best profit again and return
+        jump = jumps_and_profits[0]
+        route.append({"node": jump["node"], "distance": jump["node"].system.distance(route[-1]["node"].system),
+                      "commodity": jump["commodity"], "profit": jump["profit"],
+                      "updated": jump["node"].prices.updated()})
+        # visited systems stay the same from here
+        return self.__generate(route, visited, sell_distance=sell_distance)
+
+
+
+    def generate_from(self, starting_node, current_system=None, first_jump_prices=None, sell_distance=150):
+        """
+        format helper:
+        [{"node": self.graph.nodes[0], "distance": 50, "commodity": "lulz", "profit": 400, "updated": 18},
+         {"node": self.graph.nodes[1], "distance": 56, "commodity": "lulz2", "profit": 1400, "updated": 144}]"""
+        route = [{"node": starting_node, "distance": 0, "commodity": None, "profit": None, "updated": starting_node.prices.updated()}]
+
+        looped = self.__generate(route, [], sell_distance=sell_distance)  # visited systems are not returned because they shuffle about.
+
+        if looped:
+            pass
+
+        if first_jump_prices is not None:
+            best_deal = first_jump_prices - starting_node.prices
+            route.insert(0, {"node": None, "distance": 0, "commodity": best_deal[0], "profit": best_deal[1], "updated": starting_node.prices.updated()})
+            route[1]["distance"] = current_system.distance(route[1]["node"].system)
+        return route
+
+class RareLoader:
+    def __init__(self, sell_distance=150):
+        self.sell_distance = sell_distance
 
     def prime(self, ship_size, max_distance_from_star, filter_permit=True):
         logger.info('Opening file for RareLoader')
@@ -314,7 +432,7 @@ class RareLoader:
                 logger.info('Failed to load up backup, reloading')
                 self.prime(ship_size, max_distance_from_star, filter_needs_permit)
 
-    def alternative_determine_next(self, cur_system, cur_station, limit=10):   # expecting current
+    def alternative_determine_next(self, cur_system, cur_station, limit=10, visited=[]):   # expecting current
         # cur_system = self.route[-1][0]
         ref_dict = {}
         node_dict = {}
@@ -324,6 +442,7 @@ class RareLoader:
                 continue
             if node.system == cur_system:
                 prices = node.prices
+                continue
             ref_dict[node.name] = cur_system.distance(node.system)
             node_dict[node.name] = node
         if prices is None:
@@ -333,7 +452,7 @@ class RareLoader:
         nodelist = [node_dict[q] for q in nodelist]
         to_skip = []
         for node in nodelist:
-            for visit in self.visited:
+            for visit in visited:
                 if cur_system.distance(visit.system) > node.system.distance(visit.system):  # distance closes!
                     to_skip.append(node)
         logger.debug(f'Filtering systems from {nodelist.__len__()}')
@@ -352,8 +471,23 @@ class RareLoader:
     def query(self, system, station):
         return self.graph.query(system, station)
 
-    def generate(self, system, station, node = None):
-        pass
+    def generate(self, system, station, node = None):  # TODO: add limiters for something. max distance would be ok, but it's always "next over" so dunno. return trips are a failure though.
+        if node is None:
+            node = self.graph.closest(system)
+            prices = StationPriceList(station)
+            prices.populate()
+        else:
+            prices = None
+        route = self.graph.generate_from(node, current_system=system, first_jump_prices=prices, sell_distance=self.sell_distance)
+        return route
+
+    def check_sell(self, current_system, visited):
+        dst = current_system.distance(visited.system)
+        if dst >= self.sell_distance:
+            return dst
+        else:
+            return None
+
 
 if __name__ == '__main__':
     chona = System(name='Chona')
