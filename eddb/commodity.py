@@ -37,6 +37,12 @@ class Commodities:
         else:
             return [commodity for commodity in self.reference]
 
+    def get_by_name(self, name):
+        for ref in self.reference:
+            if ref['name'] == name:
+                return ref
+        return None
+
     def get_by_id(self, cid):
         for ref in self.reference:
             if ref['id'] == cid:

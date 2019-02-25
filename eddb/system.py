@@ -6,7 +6,7 @@ import os
 this_api = 'systems.csv'
 
 
-def system_loader(ids: list = [], names: list = []):
+def system_loader(ids: list = [], names: list = [], filter_needs_permit = False):
 
     eddb_prime.recache(this_api)
     gen = eddb_prime.read_iter(this_api)
@@ -30,6 +30,9 @@ def system_loader(ids: list = [], names: list = []):
             continue
 
         if names.__len__() > 0 and name not in names:
+            continue
+
+        if filter_needs_permit and int(system[header.index('needs_permit')]) > 0:
             continue
 
         sys = System(sid, name)

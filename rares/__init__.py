@@ -15,7 +15,7 @@ from eddb.commodity import Commodities
 logger = logging.getLogger('RareGraph')
 logger.handlers = []
 logger.addHandler(logging.StreamHandler(stream=system_module_lol.stdout))
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 
 
@@ -204,113 +204,6 @@ class RareGraph:
         ax.plot(x, y, z, color='r')
         plt.show()
 
-    def determine_next(self, sysst, visited):
-        """messages.append(f'Next stop: {route.get("system")}:}{route.get("station")};'
-                                f'Commodity: {route.get("commodity")}: Profit: {route.get("profit")}; '
-                                f'Distance: {route.get("distance")}; Last update: {route.get("updated")} hours')"""
-        system, station = sysst
-        # try to find the node
-        cur_node = self.root
-        for node in self.nodes:
-            if node.system == system and node.station == station:
-                cur_node = node
-        if cur_node.is_terminus:  # find x-y-z closest
-            routes = []
-            cur_node = self.root
-            best_distance = None
-            x_node = None
-            # pass_x
-            bar = generate_bar(UnknownLength, 'Doing X-pass')
-            bar.start()
-            while not cur_node.link_x_forward.is_terminus:
-                bar.update(bar.value + 1)
-                new_distance = abs(cur_node.link_x_forward.system.x - system.x)
-                if best_distance is None or new_distance < best_distance:
-                    best_distance = new_distance
-                    x_node = cur_node.link_x_forward
-                cur_node = cur_node.link_x_forward
-            if x_node is not None:
-                routes.append(x_node)
-            bar.finish()
-            # pass_y
-            cur_node = self.root
-            best_distance = None
-            y_node = None
-            # pass_x
-            bar = generate_bar(UnknownLength, 'Doing Y-pass')
-            bar.start()
-            while not cur_node.link_y_forward.is_terminus:
-                bar.update(bar.value + 1)
-                new_distance = abs(cur_node.link_y_forward.system.y - system.y)
-                if best_distance is None or new_distance < best_distance:
-                    best_distance = new_distance
-                    y_node = cur_node.link_y_forward
-                cur_node = cur_node.link_y_forward
-            if y_node is not None:
-                routes.append(y_node)
-            bar.finish()
-
-            # pass_z
-            cur_node = self.root
-            best_distance = None
-            z_node = None
-            bar = generate_bar(UnknownLength, 'Doing Z-pass')
-            bar.start()
-            while not cur_node.link_z_forward.is_terminus:
-                bar.update(bar.value + 1)
-                new_distance = abs(cur_node.link_z_forward.system.z - system.z)
-                if best_distance is None or new_distance < best_distance:
-                    best_distance = new_distance
-                    z_node = cur_node.link_z_forward
-                cur_node = cur_node.link_z_forward
-            if z_node is not None:
-                routes.append(z_node)
-
-            bar.finish()
-
-            # profits
-            prices = StationPriceList(station.sid)
-            prices.populate()
-            new_routes = []
-            for route in routes:
-                new_routes.append({'node': route, 'profit': prices - route.prices})
-            routes = new_routes
-        else:
-            routes = [{'node': cur_node.link_x_forward, 'profit': cur_node.prices - cur_node.link_x_forward.prices},
-                      {'node': cur_node.link_x_backward, 'profit': cur_node.prices - cur_node.link_x_backward.prices},
-                      {'node': cur_node.link_y_forward, 'profit': cur_node.prices - cur_node.link_y_forward.prices},
-                      {'node': cur_node.link_y_backward, 'profit': cur_node.prices - cur_node.link_y_backward.prices},
-                      {'node': cur_node.link_z_forward, 'profit': cur_node.prices - cur_node.link_z_forward.prices},
-                      {'node': cur_node.link_z_backward, 'profit': cur_node.prices - cur_node.link_z_backward.prices}]
-
-        # filter routes by visited
-        # routes are always filled with nodes
-        to_skip = []
-        bar = generate_bar(routes.__len__()*visited.__len__(), 'Filtering visited')
-        bar.start()
-        for route in routes:
-            if route['node'].terminus:
-                to_skip.append(route['node'])
-                continue
-            for visit in visited:
-                if system.distance(visit.system) > route['node'].system.distance(visit.system):  # distance closes!
-                    to_skip.append(route['node'])
-                bar.update(bar.value + 1)
-        bar.finish()
-        routes = [route for route in routes if route['node'] not in to_skip]
-        # todo: fix possible duplicates
-        """messages.append(f'Next stop: {route.get("system")}:}{route.get("station")};'
-                                        f'Commodity: {route.get("commodity")}: Profit: {route.get("profit")}; '
-                                        f'Distance: {route.get("distance")}; Last update: {route.get("updated")} hours')"""
-        ret_obj = []
-        for node in routes:
-            ret_obj.append({'system': node['node'].system.name, 'station': node['node'].station.name,
-                            'commodity': node['node'].name,
-                            'buy': '<none>' if node['profit'][0] is None else node['profit'][0].name, 'profit': node['profit'][1], 'distance': system.distance(node['node'].system),
-                            'updated': (time.time()-node['node'].system.updated_at)/60/60})
-        return ret_obj
-
-
     def query(self, system, station):
         logger.info(f'Querying {system}:{station}')
         for node in self.nodes:
@@ -322,7 +215,14 @@ class RareLoader:
     def __init__(self):
         pass
 
-    def prime(self, ship_size, max_distance_from_star):
+    def process_cargo(self, cargo):
+        logger.info(f'Checking :{cargo}:')
+        for node in self.graph.nodes:
+            if node.name == cargo:
+                logger.info(f'Appended a node for {cargo}')
+                self.visited.append(node)
+
+    def prime(self, ship_size, max_distance_from_star, filter_permit=True):
         logger.info('Opening file for RareLoader')
         f = open(f'{os.path.dirname(os.path.realpath(__file__))}/reference.tsv', 'r', encoding='utf-8')
         header = f.readline().split(';')
@@ -341,7 +241,7 @@ class RareLoader:
         # load up systems to get id's
         # todo: may be do sort-merge here? although not really necessary on a small list
         logger.info('Loading systems')
-        systems = system_loader(names=[q['System'] for q in reference])
+        systems = system_loader(names=[q['System'] for q in reference], filter_needs_permit=filter_permit)
 
         # load up station infos
         station_filter = list()
@@ -394,7 +294,7 @@ class RareLoader:
         logger.info('Dumping backup data')
         pickle.dump(self.graph, open(f'{os.path.dirname(os.path.realpath(__file__))}/graph_dump.pcl', 'wb'))
 
-    def init(self, ship_size='None', max_distance_from_star=-1):
+    def init(self, ship_size='None', max_distance_from_star=-1, filter_needs_permit=False):
         self.ship_size = ship_size
         self.max_distance_from_star = max_distance_from_star
 
@@ -405,67 +305,65 @@ class RareLoader:
             results.append(eddb_prime.recache(api))
         if any(results):
             logger.info('Recache needed')
-            self.prime(self.ship_size, self.max_distance_from_star)
+            self.prime(self.ship_size, self.max_distance_from_star, filter_needs_permit)
         else:
             try:
                 self.graph = pickle.loads(
                     open(f'{os.path.dirname(os.path.realpath(__file__))}/graph_dump.pcl', 'rb+').read())
             except FileNotFoundError:
                 logger.info('Failed to load up backup, reloading')
-                self.prime(ship_size, max_distance_from_star)
+                self.prime(ship_size, max_distance_from_star, filter_needs_permit)
 
-        self.route = []
-        self.visited = []
+    def alternative_determine_next(self, cur_system, cur_station, limit=10):   # expecting current
+        # cur_system = self.route[-1][0]
+        ref_dict = {}
+        node_dict = {}
+        prices = None
+        for node in self.graph.nodes:
+            if node.terminus:
+                continue
+            if node.system == cur_system:
+                prices = node.prices
+            ref_dict[node.name] = cur_system.distance(node.system)
+            node_dict[node.name] = node
+        if prices is None:
+            prices = StationPriceList(cur_station.sid)
+            prices.populate()
+        nodelist = sorted(ref_dict, key=lambda k: ref_dict[k])
+        nodelist = [node_dict[q] for q in nodelist]
+        to_skip = []
+        for node in nodelist:
+            for visit in self.visited:
+                if cur_system.distance(visit.system) > node.system.distance(visit.system):  # distance closes!
+                    to_skip.append(node)
+        logger.debug(f'Filtering systems from {nodelist.__len__()}')
+        nodelist = [node for node in nodelist if node not in to_skip]
+        logger.debug(f'Resulting list is {nodelist.__len__()}')
+        ret_obj = []
+        for node in nodelist[:limit]:
+            profit = prices - node.prices
+            ret_obj.append({'system': node.system.name, 'station': node.station.name,
+                            'commodity': node.name,
+                            'buy': '<none>' if profit[0] is None else profit[0].name,
+                            'profit': profit[1], 'distance': ref_dict[node.name],
+                            'updated': (time.time() - node.system.updated_at) / 60 / 60})
+        return ret_obj
 
-    def clear(self):
-        messages = []
-        for v in self.visited:
-            messages.append(f'Sell {v.name} somewhere.')
-        self.route = []
-        self.visited = []
-        return messages
+    def query(self, system, station):
+        return self.graph.query(system, station)
 
-    def check_sell(self):
-        ret = list()
-        for node in self.visited:
-            if self.route[-1][0].distance(node.system) > 150:  # todo: config this up
-                ret.append(node.name)
-        self.visited = [v for v in self.visited if v.name not in ret]  # clear
-        return ret
-
-    def update_current(self, system, station):
-        node = self.graph.query(system, station)  # redo names to class objects
-        if not node:
-            system_o = System(name=system)
-            station_o = Station(name=station)
-            logger.info(f'Populating system {system}')
-            if not system_o.populate():
-                raise LookupError(f'Failed to find system :{system}:')
-            print(system_o.name, system_o.id)
-            logger.info(f'Populating station {station} with ref as {system_o.id}')
-            if not station_o.populate(system_id=system_o.id):  # TODO: there are duplicate system names. try consulting simbad_ref field and parse the whole file on a .populate() sweep
-                raise LookupError(f'Failed to find station :{station}:')
-            do_buy = False
-            self.route.append((system_o, station_o))
-        else:
-            self.visited.append(node)
-            self.route.append((node.system, node.station))
-            do_buy = True
-
-        sell_this = self.check_sell()
-
-        return do_buy, node, sell_this  # seconds to minutes to hours updated
-        # awaiting [{'rare': ,'buy': , 'profit', 'distance': ''}]
-
-    def determine_next(self):
-        return self.graph.determine_next(self.route[-1], self.visited)
-
+    def generate(self, system, station, node = None):
+        pass
 
 if __name__ == '__main__':
+    chona = System(name='Chona')
+    chona.populate()
     rl = RareLoader()
-    rl.init('None', -1)
-    # rl.update_current('Delphi', 'The Oracle')
-    rl.update_current('HR 7221', 'Veron City')
-    print(rl.determine_next())
-    rl.update_current('Holva', 'Kreutz Orbital')
-    print(rl.determine_next())
+    rl.init('L', 50000, True)
+    distance = 50000
+    ref = None
+    for node in rl.graph.nodes:
+        if chona.distance(node.system) < distance:
+            distance = chona.distance(node.system)
+            ref = node.system
+    print(ref.name, distance)
