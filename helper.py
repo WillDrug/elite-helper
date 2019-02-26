@@ -77,7 +77,7 @@ class Context:
         else:
             rare = self.commodity_controller.get_by_id(eddbid)
             if rare is not None and rare["is_rare"]:
-                self.rare_holder[commodity_name] = self.current['node']
+                self.rare_holder[commodity_name] = self.current['node']  # todo: fix this when loading up
             elif rare is None:
                 self.rare_holder[commodity_name] = self.current['node']
 
@@ -161,6 +161,7 @@ class Context:
         for update in di.update_generator():
             update = update.strip().split(';')
             # switch event
+
             if update[0] == 'docked':
                 self.docked(update[1], update[2])
             elif update[0] == 'buy':
@@ -185,6 +186,13 @@ class Context:
                     break
                 elif command == 'r':
                     self.generated_route = self.rare_controller.generate(self.current["system"], self.current["station"], node=self.current["node"])
+            elif update[0] == 'load_session':
+                update.pop(0)
+                self.docked(update.pop(0), update.pop(0))
+
+
+                while update.__len__() > 1:
+                    self.buy(update.pop(0), update.pop(0), None)
             self.draw()
         di.shutdown()
 
