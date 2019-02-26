@@ -29,6 +29,7 @@ class RareNode:
         # graph literally has no reason to be two-way. why? no idea
         self.terminus = terminus
         self.name = name
+        self.qty = 1
         if name is not None:
             self.commodity = commodity_controller.get_by_name(name)
         self.system = system
@@ -132,6 +133,11 @@ class RareGraph:
     def insert(self, node):
         # three passes to link the node
         logger.info(f'Parsing {node.name}')
+        logger.info(f'Checking duplicate')
+        for ref_node in self.nodes:
+            if ref_node.system == node.system and ref_node.station == node.station:
+                ref_node.qty += 1
+                return
         ref_x = self.root
         ref_y = self.root
         ref_z = self.root
@@ -264,6 +270,8 @@ class RareGraph:
             if max_ly is not None:
                 if route[-1]["node"].system.distance(jump.system) > max_ly:
                     to_skip.append(jump)
+
+
             bar.update(bar.value + 1)
         possible_next_jump = [jump for jump in possible_next_jump if jump not in to_skip]
         bar.finish()

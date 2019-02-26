@@ -123,7 +123,7 @@ class Context:
                         commodity_text += f'{AsciiControl.WARNING}Sellable {dst}{AsciiControl.ENDC}'
             made_step_text = ''
             if made_step is not None:
-                made_step_text = f'{AsciiControl.UNDERLINE}{made_step["system"].name}:{made_step["station"].name}{AsciiControl.ENDC} (Rare: {None if made_step["node"] is None else AsciiControl.OKGREEN + made_step["node"].name + AsciiControl.ENDC})'
+                made_step_text = f'{AsciiControl.UNDERLINE}{made_step["system"].name}:{made_step["station"].name}{AsciiControl.ENDC}'  # (Rare: {None if made_step["node"] is None else AsciiControl.OKGREEN + made_step["node"].name + AsciiControl.ENDC})'
             loop_step_text = ''
             loop_step_commodity = ''
             if loop_step is not None:
@@ -187,7 +187,10 @@ class Context:
                     self.shutdown()
                     break
                 elif command == 'r':
-                    self.generated_route = self.rare_controller.generate(self.current["system"], self.current["station"], node=self.current["node"])
+                    self.generated_route = self.rare_controller.generate(self.current["system"],
+                                                                         self.current["station"],
+                                                                         node=self.current["node"],
+                                                                         max_ly=self.max_ly)
             elif update[0] == 'load_session':
                 update.pop(0)
                 self.docked(update.pop(0), update.pop(0))
@@ -212,8 +215,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     cnt = Context(**args.__dict__)
-    # cnt.run()
-    cnt.docked('Aganippe', 'Julian Market')
-    cnt.buy('Aganippe Rush', 20, 179)
-    cnt.draw()
+    cnt.run()
+    # cnt.docked('Aganippe', 'Julian Market')
+    # cnt.buy('Aganippe Rush', 20, 179)
+    # cnt.draw()
     # print(cnt.proposed)
