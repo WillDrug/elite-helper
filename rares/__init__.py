@@ -313,7 +313,7 @@ class RareGraph:
             route.append({"node": jump["node"], "distance": jump["node"].system.distance(route[-1]["node"].system),
                           "commodity": jump["commodity"], "profit": jump["profit"],
                           "updated": jump["node"].prices.updated()})
-            loop = self.__generate(route, visited=visited, sell_distance=sell_distance)
+            loop = self.__generate(route, visited=visited, sell_distance=sell_distance, max_ly=max_ly)
             if loop:  # if we have looped somewhere down the line, current route is cool
                 return loop
             # if it returns False, the previous node corrected itself, try next highest profit one
@@ -325,7 +325,7 @@ class RareGraph:
                       "commodity": jump["commodity"], "profit": jump["profit"],
                       "updated": jump["node"].prices.updated()})
         # visited systems stay the same from here
-        return self.__generate(route, visited, sell_distance=sell_distance)
+        return self.__generate(route, visited, sell_distance=sell_distance, max_ly=max_ly)
 
 
 
