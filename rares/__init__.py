@@ -5,7 +5,12 @@ import sys as system_module_lol
 from eddb import eddb_prime
 from eddb.station import station_loader, Station
 from eddb.system import system_loader, System
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.pyplot as plt
+except ModuleNotFoundError:
+    import matplotlib
+    matplotlib.use('agg')
+    from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import logging
 from eddb.progress_tracker import generate_bar
@@ -225,8 +230,10 @@ class RareGraph:
                 distance = chk
         return ref
 
-    def __generate(self, route, visited, sell_distance=150):
-        os.system('cls')
+    def __generate(self, route, visited, sell_distance=150, max_ly=None):
+        res = os.system('cls')
+        if res != 0:
+            os.system('clear')
         print([r["node"].system.name for r in route])
         visited.append(route[-1]["node"])  # append current node to visited nodes
         # determine list of possible next nodes
@@ -248,11 +255,14 @@ class RareGraph:
             visited.pop(visited.index(filter))
         # filter by distance
         to_skip = []
-        bar = generate_bar(possible_next_jump.__len__(), 'Filtering visited by closing distance')
+        bar = generate_bar(possible_next_jump.__len__(), 'Filtering visited by closing distance and max jump distance')
         bar.start()
         for jump in possible_next_jump:
             for visit in visited:
                 if visit.system.distance(route[-1]["node"].system) > visit.system.distance(jump.system):
+                    to_skip.append(jump)
+            if max_ly is not None:
+                if route[-1]["node"].system.distance(jump.system) > max_ly:
                     to_skip.append(jump)
             bar.update(bar.value + 1)
         possible_next_jump = [jump for jump in possible_next_jump if jump not in to_skip]
@@ -295,9 +305,10 @@ class RareGraph:
             comm_data = route[-1]["node"].prices - jump.prices
             jumps_and_profits.append({"node": jump, "profit": comm_data[1], "commodity": comm_data[0]})
             bar.update(bar.value + 1)
-        jumps_and_profits = sorted(jumps_and_profits, key=lambda x: x["profit"])
+        jumps_and_profits = sorted(jumps_and_profits, key=lambda x: x["profit"])[::-1]
         bar.finish()
         # else take the best profit one and re-run GENERATE (doing this in a loop here
+        # print(jumps_and_profits)
         for jump in jumps_and_profits:
             route.append({"node": jump["node"], "distance": jump["node"].system.distance(route[-1]["node"].system),
                           "commodity": jump["commodity"], "profit": jump["profit"],
@@ -318,14 +329,14 @@ class RareGraph:
 
 
 
-    def generate_from(self, starting_node, current_system=None, first_jump_prices=None, sell_distance=150):
+    def generate_from(self, starting_node, current_system=None, first_jump_prices=None, sell_distance=150, max_ly=None):
         """
         format helper:
         [{"node": self.graph.nodes[0], "distance": 50, "commodity": "lulz", "profit": 400, "updated": 18},
          {"node": self.graph.nodes[1], "distance": 56, "commodity": "lulz2", "profit": 1400, "updated": 144}]"""
         route = [{"node": starting_node, "distance": 0, "commodity": None, "profit": None, "updated": starting_node.prices.updated()}]
 
-        looped = self.__generate(route, [], sell_distance=sell_distance)  # visited systems are not returned because they shuffle about.
+        looped = self.__generate(route, [], sell_distance=sell_distance, max_ly=max_ly)  # visited systems are not returned because they shuffle about.
 
         if looped:
             pass
@@ -471,14 +482,14 @@ class RareLoader:
     def query(self, system, station):
         return self.graph.query(system, station)
 
-    def generate(self, system, station, node = None):  # TODO: add limiters for something. max distance would be ok, but it's always "next over" so dunno. return trips are a failure though.
+    def generate(self, system, station, node=None, max_ly=None):  # TODO: add limiters for something. max distance would be ok, but it's always "next over" so dunno. return trips are a failure though.
         if node is None:
             node = self.graph.closest(system)
             prices = StationPriceList(station)
             prices.populate()
         else:
             prices = None
-        route = self.graph.generate_from(node, current_system=system, first_jump_prices=prices, sell_distance=self.sell_distance)
+        route = self.graph.generate_from(node, current_system=system, first_jump_prices=prices, sell_distance=self.sell_distance, max_ly=max_ly)
         return route
 
     def check_sell(self, current_system, visited):
