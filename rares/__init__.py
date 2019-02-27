@@ -241,13 +241,18 @@ class RareGraph:
         if res != 0:
             os.system('clear')
         print([r["node"].system.name for r in route])
-        visited.append(route[-1]["node"])  # append current node to visited nodes
         # determine list of possible next nodes
-        possible_next_jump = [route[-1]["node"].link_x_forward, route[-1]["node"].link_x_backward,
+        dup_possible_next_jump = [route[-1]["node"].link_x_forward, route[-1]["node"].link_x_backward,
                      route[-1]["node"].link_y_forward, route[-1]["node"].link_y_backward,
                      route[-1]["node"].link_z_forward, route[-1]["node"].link_z_backward]
         # clear terminus
-        possible_next_jump = [jump for jump in possible_next_jump if not jump.terminus]
+        dup_possible_next_jump = [jump for jump in dup_possible_next_jump if not jump.terminus]
+        # removing duplicates
+        possible_next_jump = []
+        for jump in dup_possible_next_jump:
+            if jump not in possible_next_jump:
+                possible_next_jump.append(jump)
+
         # filter visited which should be sold
         filtered_visited = []
         bar = generate_bar(visited.__len__(), 'Removing sellable visited')
@@ -260,6 +265,7 @@ class RareGraph:
         for filter in filtered_visited:
             visited.pop(visited.index(filter))
         # filter by distance
+        visited_restore = visited.copy()
         to_skip = []
         bar = generate_bar(possible_next_jump.__len__(), 'Filtering visited by closing distance and max jump distance')
         bar.start()
@@ -274,18 +280,11 @@ class RareGraph:
             bar.update(bar.value + 1)
         possible_next_jump = [jump for jump in possible_next_jump if jump not in to_skip]
         bar.finish()
-
         # if none are left - return false, we've hit a dead-end
 
         if possible_next_jump.__len__() == 0:
-            print('Route terminal')
-            # exclude oneself from route
-            route.pop()
-            # exclude oneself from visited
-            visited.pop()
+            print('    ' * route.__len__(), f'Terminated!')
             # return visited nodes
-            for filter in filtered_visited:
-                visited.append(filter)
             return False
 
         # if any have been visited: loop is complete!
@@ -293,13 +292,13 @@ class RareGraph:
         bar.start()
         for jump in possible_next_jump:
             if jump in [r["node"] for r in route]:
-                print('Loop complete!')
                 profits = route[-1]["node"].prices - jump.prices
                 route.append({"node": jump, "distance": route[-1]["node"].system.distance(jump.system),
                               "commodity": profits[0], "profit": profits[1], "updated": jump.prices.updated()})
                 """({"node": jump["node"], "distance": jump["node"].system.distance(route[-1]["node"].system, ),
                   "commodity": jump["commodity"], "profit": jump["profit"],
                   "updated": jump["node"].prices.updated()})"""
+                # todo: fix this profits returning either 0 or None bullshit =\\
                 return True
             bar.update(bar.value + 1)
         bar.finish()
@@ -310,27 +309,48 @@ class RareGraph:
         jumps_and_profits = []
         for jump in possible_next_jump:
             comm_data = route[-1]["node"].prices - jump.prices
-            jumps_and_profits.append({"node": jump, "profit": comm_data[1], "commodity": comm_data[0]})
+            jumps_and_profits.append({"node": jump, "profit": 0 if comm_data[1] is None else comm_data[1], "commodity": comm_data[0]})
             bar.update(bar.value + 1)
         jumps_and_profits = sorted(jumps_and_profits, key=lambda x: x["profit"])[::-1]
         bar.finish()
         # else take the best profit one and re-run GENERATE (doing this in a loop here
         # print(jumps_and_profits)
+        ref_len = route.__len__()
+        best_profit = 0
+        best_profit_jump = jumps_and_profits[0]
         for jump in jumps_and_profits:
             route.append({"node": jump["node"], "distance": jump["node"].system.distance(route[-1]["node"].system),
                           "commodity": jump["commodity"], "profit": jump["profit"],
                           "updated": jump["node"].prices.updated()})
+            visited.append(jump["node"])
             loop = self.__generate(route, visited=visited, sell_distance=sell_distance, max_ly=max_ly)
+            # function has altered ROUTE and VISITED
             if loop:  # if we have looped somewhere down the line, current route is cool
                 return loop
-            # if it returns False, the next node corrected itself, try next highest profit one
+            # if we do not loop, correct the route back:
+            # know that we can't know how many nodes down the line the latest FALSE for a loop returned
+            profit = 0  # check generated route cumulative profit
+            for proposed_route_jump in route[ref_len:]:
+                profit += proposed_route_jump["profit"]
+            if profit > best_profit:
+                best_profit_jump = jump
+
+            while route.__len__() > ref_len:
+                route.pop()
+            # and visited:
+            visited.pop()  # pop back what we added
+            for visit in visited_restore:  # now correct what algorythm popped.
+                if visit not in visited:
+                    visited.append(visit)
         # this loop on the first node will guarantee that if there's a loop it will get created.
         # if all failed to loop re-run for the best profit again and return
-        jump = jumps_and_profits[0]
+        # at this point, our route and visited are as we entered the algo
+
+        jump = best_profit_jump
         route.append({"node": jump["node"], "distance": jump["node"].system.distance(route[-1]["node"].system),
                       "commodity": jump["commodity"], "profit": jump["profit"],
                       "updated": jump["node"].prices.updated()})
-        # visited systems stay the same from here
+        # while we use the __generate function, it will not pop our current system or mess with the route.
         return self.__generate(route, visited, sell_distance=sell_distance, max_ly=max_ly)
 
 
@@ -342,7 +362,7 @@ class RareGraph:
          {"node": self.graph.nodes[1], "distance": 56, "commodity": "lulz2", "profit": 1400, "updated": 144}]"""
         route = [{"node": starting_node, "distance": 0, "commodity": None, "profit": None, "updated": starting_node.prices.updated()}]
 
-        looped = self.__generate(route, [], sell_distance=sell_distance, max_ly=max_ly)  # visited systems are not returned because they shuffle about.
+        looped = self.__generate(route, [starting_node], sell_distance=sell_distance, max_ly=max_ly)  # visited systems are not returned because they shuffle about.
 
         if looped:
             pass
