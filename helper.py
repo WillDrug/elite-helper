@@ -120,7 +120,7 @@ class Context:
                 if commodity in self.rare_holder.keys():
                     dst = self.rare_controller.check_sell(self.current["system"], self.rare_holder[commodity])
                     if dst is not None:
-                        commodity_text += f'{AsciiControl.WARNING}Sellable {dst}{AsciiControl.ENDC}'
+                        commodity_text += f'{AsciiControl.HEADER} SELL {round(dst, 2)}{AsciiControl.ENDC}'
             made_step_text = ''
             if made_step is not None:
                 made_step_text = f'{AsciiControl.UNDERLINE}{made_step["system"].name}:{made_step["station"].name}{AsciiControl.ENDC}'  # (Rare: {None if made_step["node"] is None else AsciiControl.OKGREEN + made_step["node"].name + AsciiControl.ENDC})'
@@ -191,6 +191,17 @@ class Context:
                                                                          self.current["station"],
                                                                          node=self.current["node"],
                                                                          max_ly=self.max_ly)
+                elif command == 'u':
+                    l = input('max_ly>')
+                    l = int(l)
+                    p = input('sell_dst>')
+                    p = int(p)
+                    self.max_ly = l
+                    self.rare_controller.sell_distance = p
+                    self.generated_route = self.rare_controller.generate(self.current["system"],
+                                                                         self.current["station"],
+                                                                         node=self.current["node"],
+                                                                         max_ly=self.max_ly)
             elif update[0] == 'load_session':
                 update.pop(0)
                 self.docked(update.pop(0), update.pop(0))
@@ -215,8 +226,14 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     cnt = Context(**args.__dict__)
-    # cnt.run()
-    cnt.docked('Arque', 'Baird Gateway')
+    cnt.run()
+    # cnt.docked('Arque', 'Baird Gateway')
     # cnt.buy('Aganippe Rush', 20, 179)
-    cnt.draw()
+    # cnt.draw()
+    # for jump in cnt.generated_route:
+    #     input(f'<{jump["node"].system.name}, {jump["node"].station.name}>')
+    #     cnt.docked(jump["node"].system.name, jump["node"].station.name)
+    #     cnt.buy(jump["node"].name, 20, None)
+    #     cnt.draw()
+
     # print(cnt.proposed)
