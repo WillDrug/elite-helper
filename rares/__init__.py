@@ -271,7 +271,6 @@ class RareGraph:
                 if route[-1]["node"].system.distance(jump.system) > max_ly:
                     to_skip.append(jump)
 
-
             bar.update(bar.value + 1)
         possible_next_jump = [jump for jump in possible_next_jump if jump not in to_skip]
         bar.finish()
@@ -324,9 +323,8 @@ class RareGraph:
             loop = self.__generate(route, visited=visited, sell_distance=sell_distance, max_ly=max_ly)
             if loop:  # if we have looped somewhere down the line, current route is cool
                 return loop
-            # if it returns False, the previous node corrected itself, try next highest profit one
+            # if it returns False, the next node corrected itself, try next highest profit one
         # this loop on the first node will guarantee that if there's a loop it will get created.
-
         # if all failed to loop re-run for the best profit again and return
         jump = jumps_and_profits[0]
         route.append({"node": jump["node"], "distance": jump["node"].system.distance(route[-1]["node"].system),

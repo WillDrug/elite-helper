@@ -215,8 +215,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     cnt = Context(**args.__dict__)
-    cnt.run()
-    # cnt.docked('Aganippe', 'Julian Market')
+    # cnt.run()
+    cnt.docked('Arque', 'Baird Gateway')
     # cnt.buy('Aganippe Rush', 20, 179)
-    # cnt.draw()
+    cnt.draw()
     # print(cnt.proposed)
