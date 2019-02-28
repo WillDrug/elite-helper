@@ -226,10 +226,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     cnt = Context(**args.__dict__)
-    cnt.run()
-    # cnt.docked('Arque', 'Baird Gateway')
+    # cnt.run()
+    cnt.docked('Njangari', 'Lee Hub')
     # cnt.buy('Aganippe Rush', 20, 179)
-    # cnt.draw()
+    cnt.draw()
     # for jump in cnt.generated_route:
     #     input(f'<{jump["node"].system.name}, {jump["node"].station.name}>')
     #     cnt.docked(jump["node"].system.name, jump["node"].station.name)
@@ -237,3 +237,5 @@ if __name__ == '__main__':
     #     cnt.draw()
 
     # print(cnt.proposed)
+    # todo: sell marker on pre-gen route based on every step's distance
+    # TODO MUST HAVE: re-work node generation to full eddb filtering!

@@ -236,7 +236,8 @@ class RareGraph:
                 distance = chk
         return ref
 
-    def __generate(self, route, visited, sell_distance=150, max_ly=None):
+    def __generate(self, route, visited=[], sell_distance=150, max_ly=None):
+        visited.append(route[-1]["node"])
         res = os.system('cls')
         if res != 0:
             os.system('clear')
@@ -258,14 +259,11 @@ class RareGraph:
         bar = generate_bar(visited.__len__(), 'Removing sellable visited')
         bar.start()
         for visit in visited:
-            if visit.system.distance(route[-1]["node"].system) > sell_distance:
+            if visit.system.distance(route[-1]["node"].system) < sell_distance:
                 filtered_visited.append(visit)
             bar.update(bar.value + 1)
         bar.finish()
-        for filter in filtered_visited:
-            visited.pop(visited.index(filter))
         # filter by distance
-        visited_restore = visited.copy()
         to_skip = []
         bar = generate_bar(possible_next_jump.__len__(), 'Filtering visited by closing distance and max jump distance')
         bar.start()
@@ -322,9 +320,8 @@ class RareGraph:
             route.append({"node": jump["node"], "distance": jump["node"].system.distance(route[-1]["node"].system),
                           "commodity": jump["commodity"], "profit": jump["profit"],
                           "updated": jump["node"].prices.updated()})
-            visited.append(jump["node"])
-            loop = self.__generate(route, visited=visited, sell_distance=sell_distance, max_ly=max_ly)
-            # function has altered ROUTE and VISITED
+            loop = self.__generate(route, visited=filtered_visited, sell_distance=sell_distance, max_ly=max_ly)
+            # function has altered ROUTE
             if loop:  # if we have looped somewhere down the line, current route is cool
                 return loop
             # if we do not loop, correct the route back:
@@ -334,14 +331,8 @@ class RareGraph:
                 profit += proposed_route_jump["profit"]
             if profit > best_profit:
                 best_profit_jump = jump
-
             while route.__len__() > ref_len:
                 route.pop()
-            # and visited:
-            visited.pop()  # pop back what we added
-            for visit in visited_restore:  # now correct what algorythm popped.
-                if visit not in visited:
-                    visited.append(visit)
         # this loop on the first node will guarantee that if there's a loop it will get created.
         # if all failed to loop re-run for the best profit again and return
         # at this point, our route and visited are as we entered the algo
@@ -351,7 +342,7 @@ class RareGraph:
                       "commodity": jump["commodity"], "profit": jump["profit"],
                       "updated": jump["node"].prices.updated()})
         # while we use the __generate function, it will not pop our current system or mess with the route.
-        return self.__generate(route, visited, sell_distance=sell_distance, max_ly=max_ly)
+        return self.__generate(route, filtered_visited, sell_distance=sell_distance, max_ly=max_ly)
 
 
 
@@ -362,7 +353,7 @@ class RareGraph:
          {"node": self.graph.nodes[1], "distance": 56, "commodity": "lulz2", "profit": 1400, "updated": 144}]"""
         route = [{"node": starting_node, "distance": 0, "commodity": None, "profit": None, "updated": starting_node.prices.updated()}]
 
-        looped = self.__generate(route, [starting_node], sell_distance=sell_distance, max_ly=max_ly)  # visited systems are not returned because they shuffle about.
+        looped = self.__generate(route, sell_distance=sell_distance, max_ly=max_ly)  # visited systems are not returned because they shuffle about.
 
         if looped:
             pass
