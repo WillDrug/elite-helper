@@ -25,18 +25,14 @@ logger.setLevel(logging.INFO)
 commodity_controller = Commodities()
 
 class RareNode:
-    def __init__(self, name: str, system: System, station: Station, prices: StationPriceList, terminus=False, echo=False):
+    def __init__(self, system: System, station: Station, prices: StationPriceList, terminus=False, echo=False):
         # graph literally has no reason to be two-way. why? no idea
         self.terminus = terminus
-        self.name = name
-        self.qty = 1
-        if name is not None:
-            self.commodity = commodity_controller.get_by_name(name)
         self.system = system
         self.station = station
         self.prices = prices
         if terminus and not echo:  # new root node automatically creates graph-end terminus as well
-            end = RareNode(None, None, None, None, terminus=True, echo=True)
+            end = RareNode(None, None, None, terminus=True, echo=True)
             self.link_x_forward = end
             self.link_x_backward = None
             self.link_y_forward = end
@@ -49,11 +45,18 @@ class RareNode:
             end.link_x_forward = None
             end.link_y_forward = None
             end.link_z_forward = None
+        if not terminus:
+            self.commodities = []
 
     @property
     def is_terminus(self):
         return self.terminus
 
+    def add_commodity(self, name):
+        comm = commodity_controller.get_by_name(name)
+        if comm is None:
+            comm = {'id': None, 'name': name}
+        self.commodities.append(comm)
 
     def next_x_gt(self, node):
         if self.link_x_forward.terminus:
@@ -77,10 +80,10 @@ class RareNode:
         return False
 
     def __str__(self):
-        return '<terminus>' if not self.name else self.name
+        return '<terminus>' if not self.system else f'{self.system.name}:{self.station.name}'
 
     def __eq__(self, other):
-        return self.name == other.name
+        return self.system == other.system and self.station == other.station
 
     def insert_x(self, node):
         swap = self.link_x_forward
@@ -119,7 +122,7 @@ class RareGraph:
         self.index = dict()
         self.nodes = list()
         logger.info('Creating root node')
-        self.root = RareNode(None, None, None, None, terminus=True)
+        self.root = RareNode(None, None, None, terminus=True)
         logger.info('Iterating through nodes')
         bar = generate_bar(nodes.__len__(), 'Inserting systems into graph')
         bar.start()
@@ -132,12 +135,8 @@ class RareGraph:
 
     def insert(self, node):
         # three passes to link the node
-        logger.info(f'Parsing {node.name}')
-        logger.info(f'Checking duplicate')
-        for ref_node in self.nodes:
-            if ref_node.system == node.system and ref_node.station == node.station:
-                ref_node.qty += 1
-                return
+        logger.info(f'Parsing {node.system.name}:{node.station.name}')
+
         ref_x = self.root
         ref_y = self.root
         ref_z = self.root
@@ -179,7 +178,7 @@ class RareGraph:
         self.nodes.append(node)
 
         # index this shit up.
-        self.index[node.name] = node
+        self.index[node.__str__()] = node
 
     def plot_to(self, x, y, z):
         nodes = []
@@ -256,17 +255,17 @@ class RareGraph:
 
         # filter visited which should be sold
         filtered_visited = []
-        bar = generate_bar(visited.__len__(), 'Removing sellable visited')
-        bar.start()
+        # bar = generate_bar(visited.__len__(), 'Removing sellable visited')
+        # bar.start()
         for visit in visited:
             if visit.system.distance(route[-1]["node"].system) < sell_distance:
                 filtered_visited.append(visit)
-            bar.update(bar.value + 1)
-        bar.finish()
+            # bar.update(bar.value + 1)
+        # bar.finish()
         # filter by distance
         to_skip = []
-        bar = generate_bar(possible_next_jump.__len__(), 'Filtering visited by closing distance and max jump distance')
-        bar.start()
+        # bar = generate_bar(possible_next_jump.__len__(), 'Filtering visited by closing distance and max jump distance')
+        # bar.start()
         for jump in possible_next_jump:
             for visit in visited:
                 if visit.system.distance(route[-1]["node"].system) > visit.system.distance(jump.system):
@@ -275,9 +274,9 @@ class RareGraph:
                 if route[-1]["node"].system.distance(jump.system) > max_ly:
                     to_skip.append(jump)
 
-            bar.update(bar.value + 1)
+            # bar.update(bar.value + 1)
         possible_next_jump = [jump for jump in possible_next_jump if jump not in to_skip]
-        bar.finish()
+        # bar.finish()
         # if none are left - return false, we've hit a dead-end
 
         if possible_next_jump.__len__() == 0:
@@ -286,8 +285,8 @@ class RareGraph:
             return False
 
         # if any have been visited: loop is complete!
-        bar = generate_bar(possible_next_jump.__len__(), 'Checking loop possibility')
-        bar.start()
+        # bar = generate_bar(possible_next_jump.__len__(), 'Checking loop possibility')
+        # bar.start()
         for jump in possible_next_jump:
             if jump in [r["node"] for r in route]:
                 profits = route[-1]["node"].prices - jump.prices
@@ -298,26 +297,27 @@ class RareGraph:
                   "updated": jump["node"].prices.updated()})"""
                 # todo: fix this profits returning either 0 or None bullshit =\\
                 return True
-            bar.update(bar.value + 1)
-        bar.finish()
+            # bar.update(bar.value + 1)
+        # bar.finish()
 
         # check profits:
-        bar = generate_bar(possible_next_jump.__len__(), 'Populating prices')
-        bar.start()
+        # bar = generate_bar(possible_next_jump.__len__(), 'Populating prices')
+        # bar.start()
         jumps_and_profits = []
         for jump in possible_next_jump:
             comm_data = route[-1]["node"].prices - jump.prices
-            jumps_and_profits.append({"node": jump, "profit": 0 if comm_data[1] is None else comm_data[1], "commodity": comm_data[0]})
-            bar.update(bar.value + 1)
-        jumps_and_profits = sorted(jumps_and_profits, key=lambda x: x["profit"])[::-1]
-        bar.finish()
+            jumps_and_profits.append({"node": jump, "profit": 0 if comm_data[1] is None else comm_data[1], "commodity": comm_data[0],
+                                      "distance": jump.system.distance(route[-1]["node"].system)})
+            # bar.update(bar.value + 1)
+        jumps_and_profits = sorted(jumps_and_profits, key=lambda x: x["distance"])
+        # bar.finish()
         # else take the best profit one and re-run GENERATE (doing this in a loop here
         # print(jumps_and_profits)
         ref_len = route.__len__()
         best_profit = 0
         best_profit_jump = jumps_and_profits[0]
         for jump in jumps_and_profits:
-            route.append({"node": jump["node"], "distance": jump["node"].system.distance(route[-1]["node"].system),
+            route.append({"node": jump["node"], "distance": jump["distance"],
                           "commodity": jump["commodity"], "profit": jump["profit"],
                           "updated": jump["node"].prices.updated()})
             loop = self.__generate(route, visited=filtered_visited, sell_distance=sell_distance, max_ly=max_ly)
@@ -344,7 +344,18 @@ class RareGraph:
         # while we use the __generate function, it will not pop our current system or mess with the route.
         return self.__generate(route, filtered_visited, sell_distance=sell_distance, max_ly=max_ly)
 
-
+    def node_by_commodity(self, cid=None, name=None):
+        if not cid and not name:
+            return None
+        for node in self.nodes:
+            if node.terminus:
+                continue
+            if cid is not None:
+                if cid in [q['id'] for q in node.commodities]:
+                    return node
+            if name is not None:
+                if name in [q['name'] for q in node.commodities]:
+                    return node
 
     def generate_from(self, starting_node, current_system=None, first_jump_prices=None, sell_distance=150, max_ly=None):
         """
@@ -355,13 +366,27 @@ class RareGraph:
 
         looped = self.__generate(route, sell_distance=sell_distance, max_ly=max_ly)  # visited systems are not returned because they shuffle about.
 
-        if looped:
-            pass
-
         if first_jump_prices is not None:
             best_deal = first_jump_prices - starting_node.prices
             route.insert(0, {"node": None, "distance": 0, "commodity": best_deal[0], "profit": best_deal[1], "updated": starting_node.prices.updated()})
             route[1]["distance"] = current_system.distance(route[1]["node"].system)
+
+        for jump in route:
+            jump['sell'] = []
+
+        for jump in route:  # find where to sell what
+            if jump["node"] is None:
+                continue
+            distance = 0
+            ref = None
+            for check in route:
+                chk_dst = jump["node"].system.distance(check["node"].system)
+                if chk_dst > distance:
+                    distance = chk_dst
+                    ref = check
+            ref['sell'].append(jump['node'])
+        if not looped:  # pretend we do have a loop
+            route[0]['distance'] = route[-1]['node'].system.distance(route[0]['node'].system)
         return route
 
 class RareLoader:
@@ -423,15 +448,25 @@ class RareLoader:
                 logger.warning(f'Station {ref["Port"]} not found')
                 # raise NameError(f'Station {ref["Port"]} not found')
                 continue
+            dup = False
+            for node in nodes:
+                if node.system.id == system.id and node.station.sid == station.sid:
+                    node.add_commodity(ref["Commodity"])
+                    dup = True
+                    break
+            if dup:
+                continue
             prices = None
             for listing in prices_list:
                 if listing.station == station.sid:
                     prices = listing
             if prices is None:
-                logger.warning(f'Skipping {ref["Name"]} because {station.name} has no listings')
+                logger.warning(f'Skipping {ref["Commodity"]} because {station.name} has no listings')
                 continue
             logger.debug(f'Created node for {ref["Commodity"]}')
-            nodes.append(RareNode(ref['Commodity'], system, station, prices))
+
+            nodes.append(RareNode(system, station, prices))
+            nodes[-1].add_commodity(ref['Commodity'])
         logger.info('Creating graph')
         self.graph = RareGraph(nodes=nodes)
 
@@ -471,8 +506,8 @@ class RareLoader:
             if node.system == cur_system:
                 prices = node.prices
                 continue
-            ref_dict[node.name] = cur_system.distance(node.system)
-            node_dict[node.name] = node
+            ref_dict[node.__str__()] = cur_system.distance(node.system)
+            node_dict[node.__str__()] = node
         if prices is None:
             prices = StationPriceList(cur_station.sid)
             prices.populate()
@@ -490,9 +525,9 @@ class RareLoader:
         for node in nodelist[:limit]:
             profit = prices - node.prices
             ret_obj.append({'system': node.system.name, 'station': node.station.name,
-                            'commodity': node.name,
+                            'commodity': [q['name'] for q in node.commodities],
                             'buy': '<none>' if profit[0] is None else profit[0].name,
-                            'profit': profit[1], 'distance': ref_dict[node.name],
+                            'profit': profit[1], 'distance': ref_dict[node.__str__()],
                             'updated': (time.time() - node.system.updated_at) / 60 / 60})
         return ret_obj
 
@@ -516,6 +551,8 @@ class RareLoader:
         else:
             return None
 
+    def query_by_commodity(self, cid=None, name=None):
+        return self.graph.node_by_commodity(cid=cid, name=name)
 
 if __name__ == '__main__':
     chona = System(name='Chona')

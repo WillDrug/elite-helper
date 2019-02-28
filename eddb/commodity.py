@@ -42,6 +42,7 @@ class Commodities:
         for ref in self.reference:
             if ref['name'] == name:
                 return ref
+
         return None
 
     def get_by_id(self, cid):
@@ -63,3 +64,4 @@ if __name__ == '__main__':
     comm = Commodities()
     print(comm.commodities())
     print(comm.get_name_by_id(1))
+    print(comm.get_by_name('Galactic Travel Guides'))
