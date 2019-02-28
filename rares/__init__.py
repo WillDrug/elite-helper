@@ -379,7 +379,7 @@ class RareGraph:
                 continue
             distance = 0
             ref = None
-            for check in route:
+            for check in route:  #fixme if node does not exist (first-jump-thing)
                 chk_dst = jump["node"].system.distance(check["node"].system)
                 if chk_dst > distance:
                     distance = chk_dst

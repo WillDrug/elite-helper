@@ -34,7 +34,7 @@ di = EDDI()
 # load up current inventory:
 
 class Context:
-    def __init__(self, s='L', d=50000, f=True, p=150, l=None, **kwargs):
+    def __init__(self, s='L', d=50000, f=True, p=150, l=None, r=True, **kwargs):
         self.rare_controller = RareLoader(sell_distance=p)
         self.rare_controller.init(ship_size=s, max_distance_from_star=d, filter_needs_permit=f)
         self.current = {'system': None, 'station': None, 'node': None, 'rare_commodity': None}
@@ -46,6 +46,7 @@ class Context:
         self.commodity_controller = Commodities()
         self.rare_holder = {}
         self.max_ly = l
+        self.rare = r
 
 
     def docked(self, system, station):
@@ -67,7 +68,8 @@ class Context:
             'rare_commodity': None
         }
         self.route.append(self.current)
-        self.proposed = self.rare_controller.alternative_determine_next(self.current['system'], self.current['station'], visited=[self.rare_holder[k] for k in self.rare_holder])
+        if self.rare:
+            self.proposed = self.rare_controller.alternative_determine_next(self.current['system'], self.current['station'], visited=[self.rare_holder[k] for k in self.rare_holder])
 
     def buy(self, commodity_name, amount, eddbid):
         if eddbid is None:
@@ -86,9 +88,10 @@ class Context:
             self.cargo[commodity_name] = amount
         else:
             self.cargo[commodity_name] += amount
-        self.proposed = self.rare_controller.alternative_determine_next(self.current['system'], self.current['station'],
-                                                                        visited=[self.rare_holder[k] for k in
-                                                                                 self.rare_holder])
+        if self.rare:
+            self.proposed = self.rare_controller.alternative_determine_next(self.current['system'], self.current['station'],
+                                                                            visited=[self.rare_holder[k] for k in
+                                                                                     self.rare_holder])
 
 
     def sell(self, commodity_name, amount, profit, eddbid):
@@ -99,10 +102,10 @@ class Context:
                 if commodity_name in self.rare_holder.keys():
                     del self.rare_holder[commodity_name]
         self.profit += profit
-        self.proposed = self.rare_controller.alternative_determine_next(self.current['system'], self.current['station'],
-                                                                        visited=[self.rare_holder[k] for k in
-                                                                                 self.rare_holder])
-
+        if self.rare:
+            self.proposed = self.rare_controller.alternative_determine_next(self.current['system'], self.current['station'],
+                                                                            visited=[self.rare_holder[k] for k in
+                                                                                     self.rare_holder])
 
     def draw(self):
         res = os.system('cls')
@@ -121,27 +124,30 @@ class Context:
 
         info_table_data = [['Generated Jump', 'Sell Here', 'Generated Commodity', 'Proposed Jump', 'Proposed Commodity']]
         info_table_data[0] = [AsciiControl.HEADER + q + AsciiControl.ENDC for q in info_table_data[0]]
+
+        if self.rare:
+            for loop_step, proposed_step in itertools.zip_longest(self.generated_route, self.proposed):
+                loop_step_text = ''
+                loop_step_commodity = ''
+                loop_step_sell = ''
+                if loop_step is not None:
+                    loop_step_text = f'{AsciiControl.UNDERLINE}{loop_step["node"].system.name}:{loop_step["node"].station.name}{AsciiControl.ENDC} ({round(loop_step["distance"], 2)} LY)'
+                    if loop_step["profit"] is not None and loop_step["profit"] > 0:
+                        loop_step_commodity = f'{AsciiControl.OKBLUE + loop_step["commodity"].name + AsciiControl.ENDC}:{AsciiControl.OKGREEN if loop_step["profit"] > 1000 else AsciiControl.FAIL}{loop_step["profit"]}{AsciiControl.ENDC} Cz/T ({round(loop_step["updated"], 2)} h)'
+                    if loop_step['sell'].__len__() > 0:
+                        selling = [f"{', '.join([z['name'] for z in q.commodities])} ({round(q.system.distance(loop_step['node'].system), 2)})" for q in loop_step['sell']]
+                        loop_step_sell = ';\n'.join(selling)
+                proposed_step_text = ''
+                proposed_step_commodity = ''
+                if proposed_step is not None:
+                    proposed_step_text = f'{AsciiControl.UNDERLINE}{proposed_step["system"]}:{proposed_step["station"]}{AsciiControl.ENDC} ({round(proposed_step["distance"], 2)} LY);'
+                    if proposed_step["profit"] is not None and proposed_step["profit"] > 0:
+                        proposed_step_commodity = f'{AsciiControl.OKBLUE + proposed_step["buy"] + AsciiControl.ENDC} {AsciiControl.OKGREEN if proposed_step["profit"] > 1000 else AsciiControl.FAIL}{proposed_step["profit"]}{AsciiControl.ENDC} Cz/T ({round(proposed_step["updated"], 2)} h)'
+                info_table_data.append(
+                    [loop_step_text, loop_step_sell, loop_step_commodity, proposed_step_text, proposed_step_commodity])
+
         cargo_table_data = [['Cargo', 'Route']]
         cargo_table_data[0] = [AsciiControl.HEADER + q + AsciiControl.ENDC for q in cargo_table_data[0]]
-
-        for loop_step, proposed_step in itertools.zip_longest(self.generated_route, self.proposed):
-            loop_step_text = ''
-            loop_step_commodity = ''
-            loop_step_sell = ''
-            if loop_step is not None:
-                loop_step_text = f'{AsciiControl.UNDERLINE}{loop_step["node"].system.name}:{loop_step["node"].station.name}{AsciiControl.ENDC} ({round(loop_step["distance"], 2)} LY)'
-                if loop_step["profit"] is not None and loop_step["profit"] > 0:
-                    loop_step_commodity = f'{AsciiControl.OKBLUE + loop_step["commodity"].name + AsciiControl.ENDC}:{AsciiControl.OKGREEN if loop_step["profit"] > 1000 else AsciiControl.FAIL}{loop_step["profit"]}{AsciiControl.ENDC} Cz/T ({round(loop_step["updated"], 2)} h)'
-                if loop_step['sell'].__len__() > 0:
-                    selling = [f"{', '.join([z['name'] for z in q.commodities])} ({round(q.system.distance(loop_step['node'].system), 2)})" for q in loop_step['sell']]
-                    loop_step_sell = ';\n'.join(selling)
-            proposed_step_text = ''
-            proposed_step_commodity = ''
-            if proposed_step is not None:
-                proposed_step_text = f'{AsciiControl.UNDERLINE}{proposed_step["system"]}:{proposed_step["station"]}{AsciiControl.ENDC} ({round(proposed_step["distance"], 2)} LY);'
-                if proposed_step["profit"] is not None and proposed_step["profit"] > 0:
-                    proposed_step_commodity = f'{AsciiControl.OKBLUE + proposed_step["buy"] + AsciiControl.ENDC} {AsciiControl.OKGREEN if proposed_step["profit"] > 1000 else AsciiControl.FAIL}{proposed_step["profit"]}{AsciiControl.ENDC} Cz/T ({round(proposed_step["updated"], 2)} h)'
-            info_table_data.append([loop_step_text, loop_step_sell, loop_step_commodity, proposed_step_text, proposed_step_commodity])
 
         for commodity, made_step in itertools.zip_longest(self.cargo, self.route):
             commodity_text = ''
