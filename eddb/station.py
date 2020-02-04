@@ -101,7 +101,7 @@ class Station:
         self.type = s_type
 
     def populate(self, system_id=None):
-        reader = eddb_prime.read_iter(this_api)
+        reader = eddb_prime.read_iter(this_api, index=self.name)
         bar = generate_bar(reader.size, 'Filtering stations')
         bar.value = 0
         bar.start()

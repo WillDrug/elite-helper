@@ -6,6 +6,7 @@ import pickle
 import requests
 import logging
 import os
+from eddb.progress_tracker import generate_bar
 
 class EDDB:
     api_names = ['commodities.json', 'stations.jsonl', 'listings.csv', 'systems.csv']
@@ -26,6 +27,17 @@ class EDDB:
             self.config['cached'] = {}
         self.config['cached'][k] = v
 
+    def is_indexed(self, api):
+        if 'indexed' in self.config.keys():
+            return api in self.config['indexed']
+        else:
+            return False
+
+    def indexed(self, api):
+        if 'indexed' not in self.config.keys():
+            self.config['indexed'] = []
+        self.config['indexed'].append(api)
+
     def __init__(self):
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
         self.logger = logging.getLogger('EDDB_Base')
@@ -43,7 +55,7 @@ class EDDB:
             self.prime()
             self.save_config()
 
-    def load_data(self, api):
+    def load_data(self, api, index=False):
         response = requests.get(f'https://eddb.io/archive/v6/{api}', stream=True)
 
         # Throw an error for bad status codes
@@ -58,7 +70,41 @@ class EDDB:
                 bar.update(bar.value + 1)
         bar.finish()
         self.ccset(api, time())
+        if index:
+            return self.index_api(api)
         return True
+
+    def index_api(self, api):
+        self.logger.info(f'Indexing {api}')
+        gen = self.read_iter(api)
+        header = gen.__next__()
+        header = header.split(',')
+        bar = generate_bar(gen.size, f'Indexing {api}')
+        bar.value = 0
+
+        ref_idx = ''
+        f = None
+
+        bar.start()
+        for l in gen:
+            if ref_idx != l[0]:
+                if f is not None:
+                    f.close()
+                ref_idx = l[0]
+                f = open(f'{self.dir_path}/data/{api}_{l[0]}', 'w')
+                f.write(','.join(header))
+            f.write(l)
+            bar.update(bar.value + l.encode('utf-8').__len__())
+
+        bar.finish()
+        self.indexed(api)
+
+    def force_index(self):
+        for a in self.api_names:
+            if not self.is_indexed(a):
+                self.index_api(a)
+        return
+
 
     def prime(self):
         self.logger.info('Priming files')
@@ -67,18 +113,18 @@ class EDDB:
             self.load_data(api)
         self.save_config()
 
-    def recache(self, api):
+    def recache(self, api, index=False):
         if time() - self.ccget(api) > float(self.cget('timeout')):
             self.logger.info(f'Recaching {api}')
-            self.load_data(api)
+            self.load_data(api, index=index)
             self.save_config()
             return True
         else:
             return False
 
-    def recache_all(self):
+    def recache_all(self, index=False):
         for api in self.api_names:
-            self.recache(api)
+            self.recache(api, index=index)
 
     def clean(self, api):
         os.remove(f'{self.dir_path}/data/{api}')
@@ -95,8 +141,11 @@ class EDDB:
     def read(self, api):
         return self.read_object(api).read()
 
-    def read_iter(self, api):
-        return FileReader(self.read_object(api), os.path.getsize(f'{self.dir_path}/data/{api}'))
+    def read_iter(self, api, index=None):
+        if index is not None and self.is_indexed(api):
+            return FileReader(self.read_object(api), os.path.getsize(f'{self.dir_path}/data/{api}_{index[0]}'))
+        else:
+            return FileReader(self.read_object(api), os.path.getsize(f'{self.dir_path}/data/{api}'))
 
 class FileReader:
     def __init__(self, f, size):

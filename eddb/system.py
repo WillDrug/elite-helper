@@ -66,7 +66,7 @@ class System:
         self.updated_at = int(updated_at)
 
     def populate(self):
-        gen = eddb_prime.read_iter(this_api)
+        gen = eddb_prime.read_iter(this_api, index=self.name)
         header = gen.__next__()
         header = header.split(',')
         bar = generate_bar(gen.size, 'Filtering systems')
