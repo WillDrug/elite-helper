@@ -84,11 +84,13 @@ def station_loader(refs: list = [], landing_pad: str = 'None', distance_to_star:
 
 
 class Station:
-    def __init__(self, name=None, sid=None):
-        if not name and not sid:
+
+
+    def __init__(self, name):
+        if not name:
             raise IndexError('Specify station init')
         self.name = name
-        self.sid = sid
+        self.sid = None
 
     def _populate(self, id, name, system_id, updated_at, max_landing_pad_size, distance_to_star, allegiance, s_type):
         self.sid = id
@@ -101,13 +103,18 @@ class Station:
         self.type = s_type
 
     def populate(self, system_id=None):
-        reader = eddb_prime.read_iter(this_api, index=self.name)
-        bar = generate_bar(reader.size, 'Filtering stations')
+        reader_ob = eddb_prime.read_object(this_api, index=self.name[0] if self.name[0] != '?' else '__q')
+        reader = reader_ob.readlines()
+        reader_ob.close()
+        bar = generate_bar(reader.__len__(), 'Filtering stations')
         bar.value = 0
         bar.start()
         for station in reader:
-            bar.update(bar.value + station.encode('utf-8').__len__())
-            station = json.loads(station)
+            bar.update(bar.value + 1)
+            try:
+                station = json.loads(station)
+            except json.JSONDecodeError:
+                print(station)
 
             if self.name is not None and self.name != station.get('name'):
                 continue

@@ -3,6 +3,8 @@ from eddb import eddb_prime
 
 import json
 this_api = 'commodities.json'
+
+
 class Commodities:
     def __init__(self):
         eddb_prime.recache(this_api)

@@ -1,6 +1,7 @@
 from eddb import eddb_prime
 from math import sqrt
 from eddb.progress_tracker import generate_bar, track_job
+import json
 
 import os
 this_api = 'systems.csv'
@@ -43,11 +44,12 @@ def system_loader(ids: list = [], names: list = [], filter_needs_permit = False)
     return ret
 
 class System:
-    def __init__(self, sid=None, name=None):
-        if not sid and not name:
-            raise IndexError('Specify at least one ID')
-        self.id = sid
+
+    def __init__(self, name):
+        if not name:
+            raise IndexError('Specify name')
         self.name = name
+        self.id = None
 
     def __eq__(self, other):
         return self.id == other.id
@@ -66,28 +68,31 @@ class System:
         self.updated_at = int(updated_at)
 
     def populate(self):
-        gen = eddb_prime.read_iter(this_api, index=self.name)
-        header = gen.__next__()
-        header = header.split(',')
-        bar = generate_bar(gen.size, 'Filtering systems')
+        ix1 = self.name[0] if self.name[0] != '*' else 'ast'
+        if self.name.__len__() > 1:
+            ix2 = self.name[1] if self.name[1] != '*' else 'ast'
+        else:
+            ix2 = ''
+        gen_ob = eddb_prime.read_object(this_api, index=f'{ix1}{ix2}')
+        gen = gen_ob.readlines()
+        gen_ob.close()
+        bar = generate_bar(gen.__len__(), 'Filtering systems')
         bar.value = 0
         bar.start()
 
         for system in gen:
-            bar.update(bar.value + system.encode('utf-8').__len__())
-            # todo: think about switching this to rares implementation, with zipped(header, line) cycle, creating dict instead of .index() call
-            system = system.split(',')
-            name = system[header.index('name')].replace('"', '')
-            sid = system[header.index('id')]
+            bar.update(bar.value + 1)
+            system = json.loads(system)
 
-            if self.name is not None and name != self.name:
+
+            if self.name is not None and system.get('name') != self.name:
                 continue
-            if self.id is not None and sid != self.id:
+            if self.id is not None and system.get('id') != self.id:
                 continue
 
-            self._populate(system[header.index('id')], system[header.index('name')], float(system[header.index('x')]), float(system[header.index('y')]),
-                          float(system[header.index('z')]),
-                          system[header.index('allegiance')], int(system[header.index('needs_permit')]), int(system[header.index('updated_at')]))
+            self._populate(system.get('id'), system.get('name'), float(system.get('x')), float(system.get('y')),
+                          float(system.get('z')),
+                          system.get('allegiance'), int(system.get('needs_permit')), int(system.get('updated_at')))
             bar.finish()
             return True
         bar.finish()
