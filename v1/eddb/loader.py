@@ -125,12 +125,9 @@ class EDDBLoader:
         bar.start()
         while True:
             try:
-                sleep(0.1)
                 ddata = queue.get(proc_num, 1)
                 if bulk.__len__() >= commrate or ddata == 'STOP':
-                    self.l.debug(f'Commiting bulk of size {bulk.__len__()}')
-                    session.bulk_save_objects(bulk)
-                    bulk = []
+                    self.l.debug(f'Commiting thread {proc_num}')
                     session.commit()
 
                 if ddata == 'STOP':
@@ -139,21 +136,19 @@ class EDDBLoader:
                     queue.put('STOP')
                     break
 
-                l = session.query(Listing).filter(Listing.id == ddata.get('id')).first()
-                if l is None:
-                    l = Listing(**ddata)
-                    bulk.append(l)
-                else:
-                    self.__blind_update(l, ddata)
-                # move up before update
+                session.add(Listing(**ddata))
                 bar.update(bar.value + 1)
-
             except Empty:
                 pass
         bar.finish()
         self.l.info(f'Worker {proc_num} finished')
 
     def update_db_listings(self):
+        self.l.warning(f'Dropping listing database. FIXME for a proper upsert.')
+        session = Session()
+        session.query(Listing).delete()
+        session.commit()
+        session.close()
         queue = Queue()
         consumers = [
             Process(target=self.__update_db_listings, args=(i, queue,))
