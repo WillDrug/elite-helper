@@ -1,12 +1,14 @@
 import requests
-from time import time
+from time import time, sleep
 from . import dir_path, settings
 from .logger import EliteLogger
-from .ORM import Cache, Session, Commodity, Category
+from .ORM import Cache, Session, Commodity, Category, Listing
 from progressbar import ProgressBar, UnknownLength
 from .progress_tracker import generate_bar
-import os, json
+import os, json, sys
 from enum import Enum
+from multiprocessing import Queue, Process
+from queue import Empty
 
 class APIS(Enum):
     COMMODITIES = 'commodities.json'
@@ -108,20 +110,79 @@ class EDDBLoader:
                 c = Commodity(**cm)
                 session.add(c)
             else:
-                c = self.__blind_update(c, cm) # does this even work
+                c = self.__blind_update(c, cm)
             bar.update(bar.value + 1)
         bar.finish()
         session.commit()  # fixme except ORM error
         return True
+
+    def __update_db_listings(self, proc_num, queue):
+        self.l.info(f'Worker {proc_num} starting')
+        commrate = settings.get('commit_rate', 500)
+        session = Session()
+        bulk = []
+        bar = generate_bar(UnknownLength, f'Worker {proc_num} progress', redirect_stdout=True)
+        bar.start()
+        while True:
+            try:
+                sleep(0.1)
+                ddata = queue.get(proc_num, 1)
+                if bulk.__len__() >= commrate or ddata == 'STOP':
+                    self.l.debug(f'Commiting bulk of size {bulk.__len__()}')
+                    session.bulk_save_objects(bulk)
+                    bulk = []
+                    session.commit()
+
+                if ddata == 'STOP':
+                    self.l.info(f'Worker {proc_num} SIGTERM')
+                    session.close()
+                    queue.put('STOP')
+                    break
+
+                l = session.query(Listing).filter(Listing.id == ddata.get('id')).first()
+                if l is None:
+                    l = Listing(**ddata)
+                    bulk.append(l)
+                else:
+                    self.__blind_update(l, ddata)
+                # move up before update
+                bar.update(bar.value + 1)
+
+            except Empty:
+                pass
+        bar.finish()
+        self.l.info(f'Worker {proc_num} finished')
+
+    def update_db_listings(self):
+        queue = Queue()
+        consumers = [
+            Process(target=self.__update_db_listings, args=(i, queue,))
+            for i in range(settings.get('procnum', 8))
+        ]
+        self.l.info(f"Starting {settings.get('procnum', 8)} subprocesses")
+        for consumer in consumers:
+            consumer.start()
+        reader = self.read_iter(APIS.LISTINGS.value)
+        header = reader.__next__()
+        header = header.strip().split(',')
+        bar = generate_bar(reader.size, 'Loading listing update jobs')
+        for line in reader:
+            sz = line.encode('utf-8').__len__()
+            line = line.strip().split(',')
+            queue.put({a: int(b) for a, b in zip(header, line)})
+            bar.update(bar.value + sz)
+        queue.put('STOP')
+        bar.finish()
+        self.l.info("Waiting for workers to finish")
+        for consumer in consumers:
+            consumer.join()
+        queue.close()
 
     def update_db_systems(self):
         reader = self.read_iter(APIS.SYSTEMS.value)
 
     def update_db_stations(self):
         reader = self.read_iter(APIS.STATIONS.value)
-
-    def update_db_listings(self):
-        reader = self.read_iter(APIS.LISTINGS.value)
 
     def update_all(self):
         for api in APIS.get_iterator():
@@ -177,7 +238,7 @@ class EDDBLoader:
         return open(f'{dir_path}/data/{api}', 'r', encoding='utf-8')
 
     def read_iter(self, api):
-        return FileReader(self.read_object(api), os.path.getsize(f'{self.dir_path}/data/{api}'))
+        return FileReader(self.read_object(api), os.path.getsize(f'{dir_path}/data/{api}'))
 
 class FileReader:
     def __init__(self, f, size):

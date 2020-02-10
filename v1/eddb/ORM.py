@@ -36,12 +36,43 @@ class Commodity(Base):
     is_non_marketable = Column(Boolean)
     ed_id = Column(Integer)
 
+    def __repr__(self):
+        return f'<Commodity(name={self.name}, top_profit={self.max_sell_price-self.min_buy_price})>'
+
 class Category(Base):
     __tablename__ = 'category'
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
 
+    def __repr__(self):
+        return f'<Category(name={self.name})>'
+
+class Listing(Base):
+    __tablename__ = 'listing'
+    id = Column(Integer, primary_key=True)
+    station_id = Column(Integer, ForeignKey('station.id'))
+    commodity_id = Column(Integer, ForeignKey('commodity.id'))
+    supply = Column(Integer)
+    supply_bracket = Column(Integer)  # what's that
+    buy_price = Column(Integer)
+    sell_price = Column(Integer)
+    demand = Column(Integer)
+    demand_bracket = Column(Integer)
+    collected_at = Column(Integer)
+
+    def __repr__(self):
+        return f'<Listing(id={self.id}, station={self.station_id})>'
+
+class System(Base):
+    __tablename__ = 'system'
+
+    id = Column(Integer, primary_key=True)
+
+class Station(Base):
+    __tablename__ = 'station'
+
+    id = Column(Integer, primary_key=True)
 
 Base.metadata.create_all(engine)
 
