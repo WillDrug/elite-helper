@@ -1,10 +1,9 @@
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, String, Integer, create_engine, ForeignKey, Boolean
-
 from . import settings
 
-engine = create_engine(settings.get('engine'))
+engine = create_engine(settings.get('engine'), isolation_level="READ UNCOMMITTED") #
 Session = sessionmaker(bind=engine)
 connection = engine.connect()
 Base = declarative_base()

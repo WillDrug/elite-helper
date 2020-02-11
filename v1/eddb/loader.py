@@ -1,14 +1,16 @@
 import requests
-from time import time, sleep
+from time import time
 from . import dir_path, settings
 from .logger import EliteLogger
-from .ORM import Cache, Session, Commodity, Category, Listing
+from .ORM import Cache, Session, Commodity, Category, Listing, engine
 from progressbar import ProgressBar, UnknownLength
 from .progress_tracker import generate_bar
-import os, json, sys
+import os, json
 from enum import Enum
-from multiprocessing import Queue, Process
-from queue import Empty
+import pandas
+from functools import wraps
+
+
 
 class APIS(Enum):
     COMMODITIES = 'commodities.json'
@@ -82,7 +84,7 @@ class EDDBLoader:
             setattr(orm_obj, key, value)
         return orm_obj
 
-    def update_db_commodities(self):
+    def update_db_commodities(self): # no need to improve, small file
         reader = self.read_object(APIS.COMMODITIES.value)
         commodities = reader.read()
         reader.close()
@@ -116,62 +118,13 @@ class EDDBLoader:
         session.commit()  # fixme except ORM error
         return True
 
-    def __update_db_listings(self, proc_num, queue):
-        self.l.info(f'Worker {proc_num} starting')
-        commrate = settings.get('commit_rate', 500)
-        session = Session()
-        bulk = []
-        bar = generate_bar(UnknownLength, f'Worker {proc_num} progress', redirect_stdout=True)
-        bar.start()
-        while True:
-            try:
-                ddata = queue.get(proc_num, 1)
-                if bulk.__len__() >= commrate or ddata == 'STOP':
-                    self.l.debug(f'Commiting thread {proc_num}')
-                    session.commit()
-
-                if ddata == 'STOP':
-                    self.l.info(f'Worker {proc_num} SIGTERM')
-                    session.close()
-                    queue.put('STOP')
-                    break
-
-                session.add(Listing(**ddata))
-                bar.update(bar.value + 1)
-            except Empty:
-                pass
-        bar.finish()
-        self.l.info(f'Worker {proc_num} finished')
 
     def update_db_listings(self):
-        self.l.warning(f'Dropping listing database. FIXME for a proper upsert.')
-        session = Session()
-        session.query(Listing).delete()
-        session.commit()
-        session.close()
-        queue = Queue()
-        consumers = [
-            Process(target=self.__update_db_listings, args=(i, queue,))
-            for i in range(settings.get('procnum', 8))
-        ]
-        self.l.info(f"Starting {settings.get('procnum', 8)} subprocesses")
-        for consumer in consumers:
-            consumer.start()
-        reader = self.read_iter(APIS.LISTINGS.value)
-        header = reader.__next__()
-        header = header.strip().split(',')
-        bar = generate_bar(reader.size, 'Loading listing update jobs')
-        for line in reader:
-            sz = line.encode('utf-8').__len__()
-            line = line.strip().split(',')
-            queue.put({a: int(b) for a, b in zip(header, line)})
-            bar.update(bar.value + sz)
-        queue.put('STOP')
-        bar.finish()
-        self.l.info("Waiting for workers to finish")
-        for consumer in consumers:
-            consumer.join()
-        queue.close()
+        self.l.info('Reading API with pandas magic')
+        df = self.read_csv(APIS.LISTINGS.value)
+        self.l.info('Dropping and reinserting Listings')
+        df.to_sql(Listing.__tablename__, engine, if_exists='replace', index=False)
+        self.l.info('Listings done.')
 
     def update_db_systems(self):
         reader = self.read_iter(APIS.SYSTEMS.value)
@@ -227,9 +180,16 @@ class EDDBLoader:
             return False
         return True
 
-    def read_object(self, api):
+    def __check_api(self, api):
         if api not in APIS.get_iterator():
             raise ModuleNotFoundError
+
+    def read_csv(self, api):
+        self.__check_api()
+        return pandas.read_csv(f'{dir_path}/data/{api}')
+
+    def read_object(self, api):
+        self.__check_api()
         return open(f'{dir_path}/data/{api}', 'r', encoding='utf-8')
 
     def read_iter(self, api):
