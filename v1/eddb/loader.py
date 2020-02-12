@@ -2,7 +2,7 @@ import requests
 from time import time
 from . import dir_path, settings
 from .logger import EliteLogger
-from .ORM import Cache, Session, Commodity, Category, Listing, engine, System, Government, Powerstate, Security, Faction, Reserve, Allegiance, Economy
+from .ORM import *
 from sqlalchemy.sql import exists
 from progressbar import ProgressBar, UnknownLength
 from .progress_tracker import generate_bar
@@ -83,24 +83,6 @@ class EDDBLoader:
             return False
         return switch[api]()
 
-
-
-    def update_db_stations(self):
-        # works the same as systems
-        # can be loaded instantly
-        # caveates: settlement_size has both empty string and None
-        # economy: m2m mapping
-        # selling_modules: m2m mapping stub
-        # settlement_security mapping
-        # settlement_security_id mapping
-        # states: m2m mapping
-        # settlement_security destroy
-        # type drop
-        # drop settlement_size_id keep string
-        # allegiance drop
-        #
-        pass
-
     def __blind_update(self, orm_obj, attr_dict):
         for key, value in attr_dict.items():
             setattr(orm_obj, key, value)
@@ -147,6 +129,38 @@ class EDDBLoader:
         self.l.info('Dropping and reinserting Listings')
         df.to_sql(Listing.__tablename__, engine, if_exists='replace', index=False)
         self.l.info('Listings done.')
+        return True
+
+    def update_db_stations(self):
+        """{'system_id', 'government', 'government_id',
+        'settlement_size', 'economies', 'shipyard_updated_at', 'type',
+        'distance_to_star', 'market_updated_at', 'updated_at', 'selling_modules', 'allegiance_id', 'allegiance',
+        'has_rearm',
+        'settlement_security_id', 'states', 'max_landing_pad_size', 'import_commodities', 'prohibited_commodities',
+        'has_commodities', 'has_repair', 'name', 'settlement_security', 'selling_ships', 'has_outfitting',
+        'has_blackmarket', 'id', 'has_refuel', 'type_id', 'has_market', 'controlling_minor_faction_id',
+        'is_planetary', 'outfitting_updated_at', 'settlement_size_id', 'has_docking', 'export_commodities',
+        'body_id', 'has_shipyard'}"""
+        self.l.info('Loading stations')
+        stations = self.read_csv(APIS.STATIONS.value)
+        ext = [
+            (['government_id', 'government'], Government),
+            (['allegiance_id', 'allegiance'], Allegiance),
+            (['settlement_security_id', 'settlement_security'], Security),
+            (['type_id', 'type'], Type)
+        ]
+        drop = ['settlement_size_id']
+        self.l.info('Extracting dictionary table updates')
+        bar = generate_bar(stations.__len__(), 'Updating dictionaries')
+        bar.start()
+        for e in ext:
+            self.__extract_df(stations, *e)
+            bar.update(bar.value+1)
+        bar.finish()
+        self.l.info('Dropping columns')
+        stations.drop(columns=[drop], inplace=True)
+        self.l.info('Recreating stations table')
+        stations.to_sql(Station.__tablename__, engine, if_exists='replace', index=False)
         return True
 
     def __extract_df(self, df: pandas.DataFrame, group: list, orm_cls):
@@ -224,8 +238,6 @@ class EDDBLoader:
         if chk is not None and not self.override:
             self.l.info('Updating systems instead of loading')
             return self.__update_db_systems_delta()
-        print('failed')  # fixme remove
-        exit()
         self.l.info('Doing full systems update. Dropping systems table')
         s = Session()
         s.query(System).delete()

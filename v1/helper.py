@@ -1,3 +1,3 @@
 from eddb.loader import EDDBLoader, APIS
 el = EDDBLoader()
-el.load_api(APIS.STATIONS.value)
+el.update_db_for_api(APIS.SYSTEMS.value)

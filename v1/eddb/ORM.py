@@ -138,14 +138,14 @@ class Module(Base):
 class StationModules(Base):
     __tablename__ = 'stationmodules'
 
-    station_id = Column(Integer, ForeignKey('station.id'))
-    module_id = Column(Integer, ForeignKey('module.id'))
+    station_id = Column(Integer, ForeignKey('station.id'), primary_key=True)
+    module_id = Column(Integer, ForeignKey('module.id'), primary_key=True)
 
 class StationEconomies(Base):
     __tablename__ = 'stationeconomies'
 
-    station_id = Column(Integer, ForeignKey('station.id'))
-    economy_id = Column(Integer, ForeignKey('economy.id'))
+    station_id = Column(Integer, ForeignKey('station.id'), primary_key=True)
+    economy_id = Column(Integer, ForeignKey('economy.id'), primary_key=True)
 
 class State(Base):
     __tablename__ = 'state'
@@ -156,16 +156,17 @@ class State(Base):
 class StationState(Base):
     __tablename__ = 'stationstate'
 
-    station_id = Column(Integer, ForeignKey('station.id'))
-    state_id = Column(Integer, ForeignKey('state.id'))
+    station_id = Column(Integer, ForeignKey('station.id'), primary_key=True)
+    state_id = Column(Integer, ForeignKey('state.id'), primary_key=True)
 
 class Type(Base):
     __tablename__ = 'type'
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
+
 class Body(Base):
-    __talbename__ = 'body'
+    __tablename__ = 'body'
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
