@@ -6,5 +6,5 @@ settings = {
     'log_level': int(os.getenv('ELITE_LOG_LEVEL', 1)),
     'cache_time': int(os.getenv('ELITE_CACHE_TIME', 86400)),
     'procnum': int(os.getenv('ELITE_PROCNUM', 8)),
-    'commit_rate': int(os.getenv('ELITE_COMMIT_RATE', 500))
+    'chunksize': int(os.getenv('ELITE_CHUNK_SIZE', 1000000))
 }

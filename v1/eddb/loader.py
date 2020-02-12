@@ -2,14 +2,15 @@ import requests
 from time import time
 from . import dir_path, settings
 from .logger import EliteLogger
-from .ORM import Cache, Session, Commodity, Category, Listing, engine
+from .ORM import Cache, Session, Commodity, Category, Listing, engine, System, Government, Powerstate, Security, Faction, Reserve, Allegiance, Economy
+from sqlalchemy.sql import exists
 from progressbar import ProgressBar, UnknownLength
 from .progress_tracker import generate_bar
 import os, json
 from enum import Enum
 import pandas
-from functools import wraps
-
+import io
+from sqlalchemy.exc import SQLAlchemyError
 
 
 class APIS(Enum):
@@ -17,6 +18,7 @@ class APIS(Enum):
     STATIONS = 'stations.jsonl'
     LISTINGS = 'listings.csv'
     SYSTEMS = 'systems.csv'
+    #SYSTEMS_DELTA =
 
     @classmethod
     def get_iterator(cls):
@@ -24,6 +26,8 @@ class APIS(Enum):
     
     
 class EDDBLoader:
+    override = False
+
     def __init__(self):
         self.l = EliteLogger('EDDBLoader', level=settings.get('log_level'))
 
@@ -74,10 +78,28 @@ class EDDBLoader:
             APIS.STATIONS.value: self.update_db_stations,
             APIS.LISTINGS.value: self.update_db_listings
         }
-        try:
-            return switch[api]()
-        except KeyError:
+        if api not in switch.keys():
+            self.l.error(f'Key Error at updating DB for {api}')
             return False
+        return switch[api]()
+
+
+
+    def update_db_stations(self):
+        # works the same as systems
+        # can be loaded instantly
+        # caveates: settlement_size has both empty string and None
+        # economy: m2m mapping
+        # selling_modules: m2m mapping stub
+        # settlement_security mapping
+        # settlement_security_id mapping
+        # states: m2m mapping
+        # settlement_security destroy
+        # type drop
+        # drop settlement_size_id keep string
+        # allegiance drop
+        #
+        pass
 
     def __blind_update(self, orm_obj, attr_dict):
         for key, value in attr_dict.items():
@@ -121,13 +143,112 @@ class EDDBLoader:
 
     def update_db_listings(self):
         self.l.info('Reading API with pandas magic')
-        df = self.read_csv(APIS.LISTINGS.value)
+        df = self.read_csv(f'{dir_path}/data/{APIS.LISTINGS.value}')
         self.l.info('Dropping and reinserting Listings')
         df.to_sql(Listing.__tablename__, engine, if_exists='replace', index=False)
         self.l.info('Listings done.')
+        return True
+
+    def __extract_df(self, df: pandas.DataFrame, group: list, orm_cls):
+        """ much hardcode. very sad.
+        :param df: original dataframe
+        :param group: expecting a tuple\list of [id, name] of the extraction parameter
+        :param orm_cls: ORM class to insert the extracted group into
+        :return:
+        """
+        self.l.debug('Entering cleanup phase. Extracting group')
+        grp = df.groupby(group).size().reset_index().drop(columns=[0]).rename(columns={group[0]: 'id', group[1]: 'name'})
+        self.l.debug('Running session')
+        s = Session()
+        self.l.debug('Looping over records')
+        for row in grp.to_dict(orient='records'):
+            if s.query(exists().where(orm_cls.id == row.get('id'))).scalar():
+                orig = s.query(orm_cls).filter(orm_cls.id == row.get('id')).first()
+                self.__blind_update(orig, row)
+            else:
+                s.add(orm_cls(**row))
+        self.l.debug('Committing changes')
+        s.commit()
+        # grp.to_sql(orm_cls.__tablename__, engine, if_exists='replace', index=False)
+        self.l.debug('Dropping original frame columns')
+        df.drop(columns=group[1], inplace=True)
+
+    def __update_db_systems(self, systems: pandas.DataFrame):
+        # name containing quotes took care by pandas
+        # strip away government, allegiance, security, economy, powerstate, faction, reserve
+        ext = [  # first is an identifier, always
+            (['government_id', 'government'], Government),
+            (['allegiance_id', 'allegiance'], Allegiance),
+            (['security_id', 'security'], Security),
+            (['primary_economy_id', 'primary_economy'], Economy),
+            (['power_state_id', 'power_state'], Powerstate),
+            (['controlling_minor_faction_id', 'controlling_minor_faction'], Faction),
+            (['reserve_type_id', 'reserve_type'], Reserve)
+        ]
+
+        self.l.info('Updating dict tables')
+        bar = generate_bar(ext.__len__(), 'Dict tables updates')
+        bar.start()
+        for e in ext:
+            self.__extract_df(systems, *e)
+            bar.update(bar.value+1)
+        bar.finish()
+
+        # load into sql
+        self.l.info('Loading systems into DB')
+        systems.to_sql(System.__tablename__, engine, if_exists='append', index=False)
+        return True
+
+    def __update_db_systems_delta(self):
+        self.l.info('Loading systems delta')
+        systems = self.read_csv(f'systems_recently.csv')
+        s = Session()
+        bar = generate_bar(systems.__len__(), 'Updating data')
+        for sys in systems.to_dict(orient='records'):
+            if s.query(exists().where(System.id == sys.get('id'))).scalar():
+                orig = s.query(System).filter(System.id == sys.get('id')).first()
+                self.__blind_update(orig, sys)
+            else:
+                s.add(System(**sys))
+            bar.update(bar.value+1)
+        bar.finish()
+        s.commit()
+        s.close()
+        return True
 
     def update_db_systems(self):
-        reader = self.read_iter(APIS.SYSTEMS.value)
+        self.l.info('Checking systems special case')
+        s = Session()
+        chk = s.query(Cache).filter(Cache.name == APIS.SYSTEMS.value).first()
+        s.close()
+        if chk is not None and not self.override:
+            self.l.info('Updating systems instead of loading')
+            return self.__update_db_systems_delta()
+        print('failed')  # fixme remove
+        exit()
+        self.l.info('Doing full systems update. Dropping systems table')
+        s = Session()
+        s.query(System).delete()
+        s.commit()
+        s.close()
+
+        self.l.info('Reading API file in chunks')
+        # systems = pandas.read_csv(f'{dir_path}/data/{APIS.SYSTEMS.value}')
+        chunk = settings.get('chunksize', 1000000)
+        self.l.debug(f'Chunk size set to {chunk}')
+        f = self.read_iter(APIS.SYSTEMS.value)
+        header = f.__next__()
+        bar = generate_bar(f.size, 'Loading API')
+        bar.start()
+        tmp = [header,]
+        for line in f:
+            tmp.append(line)
+            if tmp.__len__() >= chunk:
+                self.__update_db_systems(pandas.read_csv(io.StringIO('\n'.join(tmp))))
+                tmp = [header,]
+            bar.update(bar.value+line.encode('utf-8').__len__())
+        bar.finish()
+        return True
 
     def update_db_stations(self):
         reader = self.read_iter(APIS.STATIONS.value)
@@ -153,6 +274,14 @@ class EDDBLoader:
         :return: True\False success
         """
         self.l.info(f'Loading {api}')
+        if api == APIS.SYSTEMS.value and not self.override:  # override makes everything clean
+            self.l.info('Checking systems special case')
+            s = Session()
+            chk = s.query(Cache).filter(Cache.name == APIS.SYSTEMS.value).first()
+            s.close()
+            if chk is not None:
+                self.l.warning('Changing systems to recently changed for loading')
+                api = 'systems_recently.csv'
         response = requests.get(f'https://eddb.io/archive/v6/{api}', stream=True)
 
         self.l.debug(f'{api} status code is {response.status_code}')
@@ -185,11 +314,11 @@ class EDDBLoader:
             raise ModuleNotFoundError
 
     def read_csv(self, api):
-        self.__check_api()
+        self.__check_api(api)
         return pandas.read_csv(f'{dir_path}/data/{api}')
 
     def read_object(self, api):
-        self.__check_api()
+        self.__check_api(api)
         return open(f'{dir_path}/data/{api}', 'r', encoding='utf-8')
 
     def read_iter(self, api):
