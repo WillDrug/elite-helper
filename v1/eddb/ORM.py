@@ -3,6 +3,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, String, Integer, Float, create_engine, ForeignKey, Boolean
 from . import settings
 
+from math import sqrt
+
 engine = create_engine(settings.get('engine'))
 Session = sessionmaker(bind=engine)
 connection = engine.connect()
@@ -85,6 +87,13 @@ class System(Base):
     simbad_ref = Column(Integer)
     controlling_minor_faction_id = Column(Integer, ForeignKey('faction.id'))
     reserve_type_id = Column(Integer, ForeignKey('reserve.id'))
+
+    def __eq__(self, other):
+        return self.id == other.id
+
+    def __sub__(self, other):
+        return abs(sqrt(pow(self.x-other.x, 2) + pow(self.y-other.y, 2) + pow(self.z-other.z, 2)))
+
 
 # Additional Systems tables
 class Government(Base):

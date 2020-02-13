@@ -1,5 +1,10 @@
-from eddb.loader import EDDBLoader, APIS
+from eddb.loader import EDDBLoader, APIS, Trader
 el = EDDBLoader()
+el.recache_all()
 
-# el.update_db_for_api(APIS.STATIONS.value)
-el.update_db_stations()
+from eddi import EDDI()
+eddi.startup()
+
+t = Trader()
+
+# run input loop here.

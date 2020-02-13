@@ -1,5 +1,5 @@
-from logging import getLogger, StreamHandler, DEBUG, INFO, WARNING, ERROR, CRITICAL
-
+from logging import getLogger, StreamHandler, DEBUG, INFO, WARNING, ERROR, CRITICAL, basicConfig
+from . import settings
 
 class EliteLogger:
     levels = {
@@ -10,7 +10,7 @@ class EliteLogger:
         4: CRITICAL
     }
 
-    def __init__(self, name, level = INFO):
+    def __init__(self, name, level=INFO):
         self.logger = getLogger(name)
         for h in self.logger.handlers:
             self.logger.removeHandler(h)
@@ -21,6 +21,8 @@ class EliteLogger:
             self.logger.level = INFO
         self.logger.addHandler(StreamHandler())
         self.logger.info(f'Logger starting with level {self.logger.level}')
+        format = settings.get('log_format', '%(asctime)-15s %(levelname)s %(name)s: %(message)s')
+        basicConfig(format=format)
 
     def debug(self, *args, **kwargs):
         return self.logger.debug(*args, **kwargs)
