@@ -201,9 +201,6 @@ class Station(Base):
     has_rearm = Column(Boolean)
     settlement_security_id = Column(Integer, ForeignKey('security.id'))
     max_landing_pad_size = Column(String)
-    export_commodities = Column(String)      # stringified list. fixme: dict
-    import_commodities = Column(String)      # stringified list. fixme: dict
-    prohibited_commodities = Column(String)  # stringified list. fixme: dict
     has_commodities = Column(Boolean)
     has_repair = Column(Boolean)
     name = Column(String)
@@ -220,5 +217,36 @@ class Station(Base):
     body_id = Column(Integer, ForeignKey('body.id'))
     has_shipyard = Column(Boolean)
 
+    def __sub__(self, other):
+        if not self.has_market or not other.has_market:
+            return None, 0
 
+        s = Session()
+        # exported = s.query(StationCommodities).filter(StationCommodities.station_id == self.id).filter(StationCommodities.usage == 1).all()
+        # imported = s.query(StationCommodities).filter(StationCommodities.station_id == other.id).filter(StationCommodities.usage == 0).all()
+        # candidates = [q for q in imported if q in exported]
+        # if candidates.__len__() > 0:
+        prices = s.query(Listing).filter(Listing.station_id._in([self.id, other.id])).all()
+
+        compare = {}
+        for p in prices:
+            if p.commodity_id not in compare.keys():
+                compare[p.commodity_id] = 0
+            if p.station_id == self.id:
+                compare[p.commodity_id] -= p.buy_price
+            if p.station_id == other.id:
+                compare[p.p.commodity_id] += p.sell_price
+        price = 0
+        commodity = None
+        for com in compare:
+            if compare[com] > price:
+                price = compare[com]
+                commodity = com
+
+        if commodity is not None:
+            commodity = s.query(Commodity).filter(Commodity.id == commodity).first()
+            if commodity is not None:
+                commodity = commodity.name
+
+        return commodity, price
 Base.metadata.create_all(engine)

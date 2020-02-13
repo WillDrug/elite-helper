@@ -184,6 +184,7 @@ class EDDBLoader:
         bar.finish()
         s.commit()
 
+
         bar = generate_bar(stations.__len__(), 'Updating economy info')
         for station in stations[['id', 'economies']].to_dict(orient='records'):
             for economy in station['economies']:
@@ -199,7 +200,7 @@ class EDDBLoader:
         bar.finish()
         s.commit()
 
-        bar = generate_bar(stations.__len__(), 'Updating module info')
+        bar = generate_bar(stations.__len__(), 'Updating module info')  # FIXME OOM here
         for station in stations[['id', 'selling_modules']].to_dict(orient='records'):
             bar.update(bar.value + 1)
             for module in station['selling_modules']:
