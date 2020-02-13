@@ -171,6 +171,13 @@ class Body(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String)
 
+class StationCommodities(Base):
+    __tablename__ = 'stationcommodities'
+
+    station_id = Column(Integer, ForeignKey('station.id'), primary_key=True)
+    commodity_id = Column(Integer, ForeignKey('commodity.id'), primary_key=True)
+    usage = Column(Integer, primary_key=True)  # -1 prohibited, 0 import, 1 export
+
 class Station(Base):
     __tablename__ = 'station'
 
@@ -203,5 +210,6 @@ class Station(Base):
     has_docking = Column(Boolean)
     body_id = Column(Integer, ForeignKey('body.id'))
     has_shipyard = Column(Boolean)
+
 
 Base.metadata.create_all(engine)
