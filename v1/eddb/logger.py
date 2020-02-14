@@ -12,6 +12,8 @@ class EliteLogger:
 
     def __init__(self, name, level=INFO):
         self.logger = getLogger(name)
+        format = settings.get('log_format', '%(asctime)-15s %(levelname)s %(name)s: %(message)s')
+        basicConfig(format=format)
         for h in self.logger.handlers:
             self.logger.removeHandler(h)
         try:
@@ -21,8 +23,6 @@ class EliteLogger:
             self.logger.level = INFO
         self.logger.addHandler(StreamHandler())
         self.logger.info(f'Logger starting with level {self.logger.level}')
-        format = settings.get('log_format', '%(asctime)-15s %(levelname)s %(name)s: %(message)s')
-        basicConfig(format=format)
 
     def debug(self, *args, **kwargs):
         return self.logger.debug(*args, **kwargs)

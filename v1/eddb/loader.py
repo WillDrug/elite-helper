@@ -15,9 +15,9 @@ from sqlalchemy.exc import SQLAlchemyError
 
 class APIS(Enum):
     COMMODITIES = 'commodities.json'
+    SYSTEMS = 'systems.csv'
     STATIONS = 'stations.jsonl'
     LISTINGS = 'listings.csv'
-    SYSTEMS = 'systems.csv'
     #SYSTEMS_DELTA =
 
     @classmethod
@@ -88,7 +88,8 @@ class EDDBLoader:
             setattr(orm_obj, key, value)
         return orm_obj
 
-    def update_db_commodities(self): # no need to improve, small file
+    def update_db_commodities(self):
+        # todo move to read_json?
         reader = self.read_object(APIS.COMMODITIES.value)
         commodities = reader.read()
         reader.close()
@@ -145,33 +146,23 @@ class EDDBLoader:
             session.commit()
             session.close()
 
-    def update_db_stations(self):
-        self.l.info('Loading stations')
-        self.l.info('Gulping file')
-        stations = self.read_json(APIS.STATIONS.value)
+    def __update_db_stations(self, stations):
         ext = [
             (['government_id', 'government'], Government),
             (['allegiance_id', 'allegiance'], Allegiance),
             (['settlement_security_id', 'settlement_security'], Security),
             (['type_id', 'type'], Type)
         ]
-        drop = ['settlement_size_id', 'economies', 'states', 'prohibited_commodities', 'import_commodities', 'export_commodities']
+        drop = ['settlement_size_id', 'economies', 'states', 'prohibited_commodities', 'import_commodities',
+                'export_commodities']
+
+        self.l.info('Running special cases')
         self.l.info('Extracting dictionary table updates')
         bar = generate_bar(stations.__len__(), 'Updating dictionaries')
         bar.start()
         for e in ext:
             self.__extract_df(stations, *e)
-            bar.update(bar.value+1)
-
-        self.l.info('Running state special case')
-        self.l.info('Dropping statioin2state, station2module, station2economy, station2commodity mapping')
-        s = Session()
-        s.query(StationState).delete()
-        s.query(StationEconomies).delete()
-        s.query(StationModules).delete()
-        s.query(StationCommodities).delete()
-        s.commit()
-        s.close()
+            bar.update(bar.value + 1)
 
         bar = generate_bar(stations.__len__(), 'Updating state info')
         bar.start()
@@ -180,10 +171,9 @@ class EDDBLoader:
             for state in station['states']:
                 self.__upsert(state, State, s)
                 s.add(StationState(station_id=station.get('id'), state_id=state.get('id')))
-            bar.update(bar.value+1)
+            bar.update(bar.value + 1)
         bar.finish()
         s.commit()
-
 
         bar = generate_bar(stations.__len__(), 'Updating economy info')
         for station in stations[['id', 'economies']].to_dict(orient='records'):
@@ -191,7 +181,8 @@ class EDDBLoader:
                 # checking id present in dict
                 economy_id = s.query(Economy).filter(Economy.name == economy).first()
                 if economy_id is None:
-                    self.l.error(f'Failed to fetch economy {economy} id. Respect the weird order of operations here, dammit')
+                    self.l.error(
+                        f'Failed to fetch economy {economy} id. Respect the weird order of operations here, dammit')
                     continue  # skip alltogether
                 else:
                     economy_id = economy_id.id
@@ -209,8 +200,10 @@ class EDDBLoader:
         s.commit()
 
         bar = generate_bar(stations.__len__(), 'Updating commodity info')
-        for station in stations[['id', 'prohibited_commodities', 'import_commodities', 'export_commodities']].to_dict(orient='records'):
-            for key, usage in {'prohibited_commodities': -1, 'import_commodities': 0, 'export_commodities': 1}:  # todo move this outside into ORM or something
+        for station in stations[['id', 'prohibited_commodities', 'import_commodities', 'export_commodities']].to_dict(
+                orient='records'):
+            for key, usage in {'prohibited_commodities': -1, 'import_commodities': 0,
+                               'export_commodities': 1}:  # todo move this outside into ORM or something
                 for commodity in station[key]:
                     commodity_id = s.query(Commodity).filter(Commodity.name == commodity).first()
                     if commodity_id is None:
@@ -229,6 +222,28 @@ class EDDBLoader:
         self.l.info('Recreating stations table')
         stations.to_sql(Station.__tablename__, engine, if_exists='replace', index=False)
         return True
+
+    def update_db_stations(self):
+        self.l.info('Dropping statioin2state, station2module, station2economy, station2commodity mapping')
+        s = Session()
+        s.query(StationState).delete()
+        s.query(StationEconomies).delete()
+        s.query(StationModules).delete()
+        s.query(StationCommodities).delete()
+        s.commit()
+        s.close()
+        self.l.info('Loading stations')
+        chunksize = settings.get('chunksize', -1)
+        if chunksize > 0:
+            self.l.info(f'Reading file by {chunksize} chunks')
+            for stations in self.read_json(APIS.STATIONS.value, lines=True, chunksize=chunksize):
+                if not self.__update_db_stations(stations):
+                    return False
+            return True
+        else:
+            self.l.info('Gulping file')
+            return self.__update_db_stations(self.read_json(APIS.STATIONS.value, lines=True))
+
 
     def __extract_df(self, df: pandas.DataFrame, group: list, orm_cls):
         """ much hardcode. very sad.
@@ -317,18 +332,16 @@ class EDDBLoader:
         if chunk < 0:
             self.l.warning('Empty chunk size, gulping full file')
             return self.__update_db_systems(self.read_csv(APIS.SYSTEMS.value))
+
         self.l.debug(f'Chunk size set to {chunk}')
-        f = self.read_iter(APIS.SYSTEMS.value)
-        header = f.__next__()
-        bar = generate_bar(f.size, 'Loading API')
+
+        system_reader = self.read_csv(APIS.SYSTEMS.value, chunksize=chunk)
+        bar = generate_bar(self.__line_count(APIS.SYSTEMS.value), 'Loading API')
         bar.start()
-        tmp = [header,]
-        for line in f:
-            tmp.append(line)
-            if tmp.__len__() >= chunk:
-                self.__update_db_systems(pandas.read_csv(io.StringIO('\n'.join(tmp))))
-                tmp = [header,]
-            bar.update(bar.value+line.encode('utf-8').__len__())
+        for system in system_reader:
+            if not self.__update_db_systems(system):
+                return False
+            bar.update(bar.value+system.__len__())
         bar.finish()
         return True
 
@@ -389,13 +402,18 @@ class EDDBLoader:
             return False
         return True
 
+    def __line_count(self, api):
+        return sum(1 for row in open(f'{dir_path}/data/{api}', 'r'))
+
     def __check_api(self, api):
         if api not in APIS.get_iterator():
             raise ModuleNotFoundError
 
-    def read_json(self, api):
+    def read_json(self, api, lines=False, chunksize=None):
+        if chunksize == -1:
+            chunksize = None
         self.__check_api(api)
-        return pandas.read_json(f'{dir_path}/data/{api}', lines=True, orient='records')
+        return pandas.read_json(f'{dir_path}/data/{api}', lines=lines, chunksize=chunksize, orient='records')
 
     def read_csv(self, api):
         self.__check_api(api)
