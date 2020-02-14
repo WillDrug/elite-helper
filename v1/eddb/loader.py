@@ -220,12 +220,13 @@ class EDDBLoader:
         self.l.info('Dropping columns')
         stations.drop(columns=drop, inplace=True)
         self.l.info('Recreating stations table')
-        stations.to_sql(Station.__tablename__, engine, if_exists='replace', index=False)
+        stations.to_sql(Station.__tablename__, engine, if_exists='append', index=False)
         return True
 
     def update_db_stations(self):
-        self.l.info('Dropping statioin2state, station2module, station2economy, station2commodity mapping')
+        self.l.info('Dropping Station, statioin2state, station2module, station2economy, station2commodity mapping')
         s = Session()
+        s.query(Station).delete()
         s.query(StationState).delete()
         s.query(StationEconomies).delete()
         s.query(StationModules).delete()
@@ -415,9 +416,9 @@ class EDDBLoader:
         self.__check_api(api)
         return pandas.read_json(f'{dir_path}/data/{api}', lines=lines, chunksize=chunksize, orient='records')
 
-    def read_csv(self, api):
+    def read_csv(self, api, chunksize=None):
         self.__check_api(api)
-        return pandas.read_csv(f'{dir_path}/data/{api}')
+        return pandas.read_csv(f'{dir_path}/data/{api}', chunksize=chunksize)
 
     def read_object(self, api):
         self.__check_api(api)
