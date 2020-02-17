@@ -14,6 +14,7 @@ class Cache(Base):
     __tablename__ = 'cache'
 
     name = Column(String, primary_key=True)
+    loaded = Column(Integer)
     cached = Column(Integer)
 
     def __repr__(self):

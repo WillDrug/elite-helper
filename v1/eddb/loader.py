@@ -18,7 +18,7 @@ class APIS(Enum):
     SYSTEMS = 'systems.csv'
     STATIONS = 'stations.jsonl'
     LISTINGS = 'listings.csv'
-    #SYSTEMS_DELTA =
+    SYSTEMS_DELTA = 'systems_recently.csv'
 
     @classmethod
     def get_iterator(cls):
@@ -47,20 +47,21 @@ class EDDBLoader:
         self.l.info(f'Checking cache state of {api}')
         session = Session()
         cached = session.query(Cache).filter(Cache.name == api).first()
-        if cached is None or cached.cached >= int(time())+settings.get('cache_time', 86400):
+        if cached is None or cached.loaded >= int(time())+settings.get('cache_time', 86400):
             res = self.load_api(api)
-            self.l.debug(f'Loading succeeded for {api}: {res}')
             if not res:
                 return False
-            res = self.update_db_for_api(api)
-            self.l.debug(f'Updating DB succeeded for {api}: {res}')
-            if not res:
-                return False
-            # if all passed, update cache time
-            if cached is None:
-                cached = Cache(name=api, cached=int(time()))
-                session.add(cached)
             else:
+                self.l.debug(f'Loading succeeded for {api}: {res}')
+                cached.loaded = int(time())
+            if cached.loaded >= int(time())+settings.get('cache_time', 86400):
+                res = self.update_db_for_api(api)
+            else:
+                self.l.info(f'{api} already loaded, skipping')
+            if not res:
+                return False
+            else:
+                self.l.debug(f'Updating DB succeeded for {api}: {res}')
                 cached.cached = int(time())
             session.commit()
         else:
@@ -156,6 +157,10 @@ class EDDBLoader:
         drop = ['settlement_size_id', 'economies', 'states', 'prohibited_commodities', 'import_commodities',
                 'export_commodities']
 
+        commrate = settings.get('commit_rate', -1)
+        if commrate < 0:
+            commrate = None
+
         self.l.info('Running special cases')
         self.l.info('Extracting dictionary table updates')
         bar = generate_bar(stations.__len__(), 'Updating dictionaries')
@@ -171,6 +176,9 @@ class EDDBLoader:
             for state in station['states']:
                 self.__upsert(state, State, s)
                 s.add(StationState(station_id=station.get('id'), state_id=state.get('id')))
+            if commrate is not None:
+                if bar.value % commrate == 0:
+                    s.commit()
             bar.update(bar.value + 1)
         bar.finish()
         s.commit()
@@ -187,17 +195,22 @@ class EDDBLoader:
                 else:
                     economy_id = economy_id.id
                 s.add(StationEconomies(station_id=station.get('id'), economy_id=economy_id))
+            if commrate is not None:
+                if bar.value % commrate == 0:
+                    s.commit()
             bar.update(bar.value + 1)
         bar.finish()
         s.commit()
 
-        bar = generate_bar(stations.__len__(), 'Updating module info')  # FIXME OOM here
+        bar = generate_bar(stations.__len__(), 'Updating module info')  # FIXME OOM here, very taxing operation for some reason.; current commit rate ~8.1 GB taken; full commit - 16GB+; check double the commit rate
         for station in stations[['id', 'selling_modules']].to_dict(orient='records'):
             bar.update(bar.value + 1)
             for module in station['selling_modules']:
                 s.add(StationModules(station_id=station.get('id'), module_id=module))
+            if commrate is not None:
+                if bar.value % commrate == 0:
+                    s.commit()
         bar.finish()
-        s.commit()
 
         bar = generate_bar(stations.__len__(), 'Updating commodity info')
         for station in stations[['id', 'prohibited_commodities', 'import_commodities', 'export_commodities']].to_dict(
@@ -213,8 +226,12 @@ class EDDBLoader:
                         commodity_id = commodity_id.id
 
                     s.add(StationCommodities(station_id=station.get('id'), commodity_id=commodity_id, usage=usage))
+            if commrate is not None:
+                if bar.value % commrate == 0:
+                    s.commit()
             bar.update(bar.value + 1)
         bar.finish()
+        s.commit()
         s.close()
 
         self.l.info('Dropping columns')
@@ -270,10 +287,9 @@ class EDDBLoader:
         self.l.debug('Dropping original frame columns')
         df.drop(columns=group[1], inplace=True)
 
-    def __update_db_systems(self, systems: pandas.DataFrame):
-        # name containing quotes took care by pandas
-        # strip away government, allegiance, security, economy, powerstate, faction, reserve
-        ext = [  # first is an identifier, always
+    @property
+    def __systems_extraction_data(self):
+        return [  # first is an identifier, always
             (['government_id', 'government'], Government),
             (['allegiance_id', 'allegiance'], Allegiance),
             (['security_id', 'security'], Security),
@@ -283,10 +299,14 @@ class EDDBLoader:
             (['reserve_type_id', 'reserve_type'], Reserve)
         ]
 
+    def __update_db_systems(self, systems: pandas.DataFrame):
+        # name containing quotes took care by pandas
+        # strip away government, allegiance, security, economy, powerstate, faction, reserve
+
         self.l.info('Updating dict tables')
-        bar = generate_bar(ext.__len__(), 'Dict tables updates')
+        bar = generate_bar(self.__systems_extraction_data.__len__(), 'Dict tables updates')
         bar.start()
-        for e in ext:
+        for e in self.__systems_extraction_data:
             self.__extract_df(systems, *e)
             bar.update(bar.value+1)
         bar.finish()
@@ -300,13 +320,12 @@ class EDDBLoader:
         self.l.info('Loading systems delta')
         systems = self.read_csv(f'systems_recently.csv')
         s = Session()
-        bar = generate_bar(systems.__len__(), 'Updating data')
+        for ext in self.__systems_extraction_data:
+            self.__extract_df(systems, *ext)
+        bar = generate_bar(systems.__len__(), 'Updating sytstems data')
+        bar.start()
         for sys in systems.to_dict(orient='records'):
-            if s.query(exists().where(System.id == sys.get('id'))).scalar():
-                orig = s.query(System).filter(System.id == sys.get('id')).first()
-                self.__blind_update(orig, sys)
-            else:
-                s.add(System(**sys))
+            self.__upsert(sys, System, s)
             bar.update(bar.value+1)
         bar.finish()
         s.commit()

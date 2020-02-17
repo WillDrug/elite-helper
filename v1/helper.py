@@ -2,8 +2,7 @@ from eddb.loader import EDDBLoader, APIS
 from eddb.trading import Trader
 el = EDDBLoader()
 # el.recache_all()
-# el.load_all()
-[el.update_db_for_api(q) for q in APIS.get_iterator()]
+el.update_all()
 exit()
 
 from eddi import EDDI
