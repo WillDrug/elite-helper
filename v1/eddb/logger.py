@@ -24,7 +24,7 @@ class EliteLogger:
         handler = StreamHandler()
         handler.setFormatter(format)
         self.logger.addHandler(StreamHandler())
-        self.logger.info(f'Logger starting with level {self.logger.level}')
+        self.logger.info(f'Logger {name} starting with level {self.logger.level}')
 
     def debug(self, *args, **kwargs):
         return self.logger.debug(*args, **kwargs)

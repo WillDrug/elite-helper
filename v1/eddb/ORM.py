@@ -1,6 +1,7 @@
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, String, Integer, Float, create_engine, ForeignKey, Boolean
+from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
 from . import settings
 
 from math import sqrt
@@ -39,7 +40,17 @@ class Commodity(Base):
     ed_id = Column(Integer)
 
     def __repr__(self):
-        return f'<Commodity(name={self.name}, top_profit={self.max_sell_price-self.min_buy_price})>'
+        if self.max_sell_price is None or self.min_buy_price is None:
+            return f'<Commodity(name={self.name}, marketable={not self.is_non_marketable}, sellable={True if self.max_sell_price is not None else False}, buyable={True if self.min_buy_price is not None else False})>'
+        else:
+            return f'<Commodity(name={self.name}, top_profit={self.max_sell_price-self.min_buy_price})>'
+
+    @classmethod
+    def get_marketable(cls):
+        s = Session()
+        ret = s.query(cls).filter(cls.is_non_marketable == False).filter(cls.max_sell_price.isnot(None)).filter(cls.min_buy_price.isnot(None)).all()
+        s.close()
+        return ret
 
 class Category(Base):
     __tablename__ = 'category'
@@ -66,6 +77,18 @@ class Listing(Base):
     def __repr__(self):
         return f'<Listing(id={self.id}, station={self.station_id})>'
 
+    def get_buy_price(self):
+        if self.buy_price == 0:
+            return None
+        else:
+            return self.buy_price
+
+    def get_sell_price(self):
+        if self.sell_price == 0:
+            return None
+        else:
+            return self.sell_price
+
 class System(Base):
     __tablename__ = 'system'
 
@@ -89,12 +112,25 @@ class System(Base):
     controlling_minor_faction_id = Column(Integer, ForeignKey('faction.id'))
     reserve_type_id = Column(Integer, ForeignKey('reserve.id'))
 
+    @hybrid_method
+    def distance(self, other):
+        """ABS(
+            SQRT(
+                (x1 - x0) ^ 2 +
+                (y1 - y0) ^ 2 +
+                (z1 - z0) ^ 2
+            )
+        )"""
+        return abs(sqrt(pow(other.x - self.x, 2) + pow(other.y - self.y, 2) + pow(other.z - self.z, 2)))
+
     def __eq__(self, other):
         return self.id == other.id
 
     def __sub__(self, other):
         return abs(sqrt(pow(self.x-other.x, 2) + pow(self.y-other.y, 2) + pow(self.z-other.z, 2)))
 
+    def __repr__(self):
+        return f'<System(name={self.name})>'
 
 # Additional Systems tables
 class Government(Base):
@@ -103,11 +139,17 @@ class Government(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String)
 
+    def __repr__(self):
+        return f'<Government(name={self.name})>'
+
 class Allegiance(Base):
     __tablename__ = 'allegiance'
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
+
+    def __repr__(self):
+        return f'<Allegiance(name={self.name})>'
 
 class Security(Base):
     __tablename__ = 'security'
@@ -115,11 +157,17 @@ class Security(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String)
 
+    def __repr__(self):
+        return f'<Security(name={self.name})>'
+
 class Economy(Base):
     __tablename__ = 'economy'
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
+
+    def __repr__(self):
+        return f'<Economy(name={self.name})>'
 
 class Powerstate(Base):
     __tablename__ = 'powerstate'
@@ -127,11 +175,17 @@ class Powerstate(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String)
 
+    def __repr__(self):
+        return f'<Powerstate(name={self.name})>'
+
 class Faction(Base):
     __tablename__ = 'faction'
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
+
+    def __repr__(self):
+        return f'<Faction(name={self.name})>'
 
 class Reserve(Base):
     __tablename__ = 'reserve'
@@ -139,11 +193,17 @@ class Reserve(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String)
 
+    def __repr__(self):
+        return f'<Reserve(name={self.name})>'
+
 class Module(Base):
     __tablename__ = 'module'
 
     id = Column(Integer, primary_key=True)  # fixme: populate
     name = Column(String)
+
+    def __repr__(self):
+        return f'<Module(name={self.name})>'
 
 class StationModules(Base):
     __tablename__ = 'stationmodules'
@@ -151,11 +211,17 @@ class StationModules(Base):
     station_id = Column(Integer, ForeignKey('station.id'), primary_key=True)
     module_id = Column(Integer, ForeignKey('module.id'), primary_key=True)
 
+    def __repr__(self):
+        return f'<StationModules(station={self.station_id}, module={self.module_id})>'
+
 class StationEconomies(Base):
     __tablename__ = 'stationeconomies'
 
     station_id = Column(Integer, ForeignKey('station.id'), primary_key=True)
     economy_id = Column(Integer, ForeignKey('economy.id'), primary_key=True)
+
+    def __repr__(self):
+        return f'<StationEconomies(name={self.station_id}, economy={self.economy_id})>'
 
 class State(Base):
     __tablename__ = 'state'
@@ -163,11 +229,17 @@ class State(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String)
 
+    def __repr__(self):
+        return f'<State(name={self.name})>'
+
 class StationState(Base):
     __tablename__ = 'stationstate'
 
     station_id = Column(Integer, ForeignKey('station.id'), primary_key=True)
     state_id = Column(Integer, ForeignKey('state.id'), primary_key=True)
+
+    def __repr__(self):
+        return f'<Government(station={self.station_id}, state_id={self.state_id})>'
 
 class Type(Base):
     __tablename__ = 'type'
@@ -175,11 +247,17 @@ class Type(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String)
 
+    def __repr__(self):
+        return f'<Type(name={self.name})>'
+
 class Body(Base):
     __tablename__ = 'body'
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
+
+    def __repr__(self):
+        return f'<Body(name={self.name})>'
 
 class StationCommodities(Base):
     __tablename__ = 'stationcommodities'
@@ -188,11 +266,17 @@ class StationCommodities(Base):
     commodity_id = Column(Integer, ForeignKey('commodity.id'), primary_key=True)
     usage = Column(Integer, primary_key=True)  # -1 prohibited, 0 import, 1 export
 
+    def __repr__(self):
+        return f'<StationCommodities(station_id={self.station_id}, commodity={self.commodity_id}, usage={self.usage})>'
+
 class StationShips(Base):
     __tablename__ = 'stationships'
 
     station_id = Column(Integer, primary_key=True)
     name = Column(String, primary_key=True)
+
+    def __repr__(self):
+        return f'<StationShips(station_id={self.station_id}, name={self.name})>'
 
 class Station(Base):
     __tablename__ = 'station'
@@ -223,26 +307,31 @@ class Station(Base):
     has_docking = Column(Boolean)
     body_id = Column(Integer, ForeignKey('body.id'))
     has_shipyard = Column(Boolean)
+    distance_to_star = Column(Integer)
+
+    def __repr__(self):
+        return f'<Station(name={self.name})>'
 
     def __sub__(self, other):
         if not self.has_market or not other.has_market:
             return None, 0
 
         s = Session()
-        # exported = s.query(StationCommodities).filter(StationCommodities.station_id == self.id).filter(StationCommodities.usage == 1).all()
-        # imported = s.query(StationCommodities).filter(StationCommodities.station_id == other.id).filter(StationCommodities.usage == 0).all()
-        # candidates = [q for q in imported if q in exported]
-        # if candidates.__len__() > 0:
-        prices = s.query(Listing).filter(Listing.station_id._in([self.id, other.id])).all()
-
+        prices = s.query(Listing).filter(Listing.station_id.in_([self.id, other.id])).filter(Listing.commodity_id.in_([q.id for q in Commodity.get_marketable()])).all()
+        to_delete = list()
+        for p in prices:
+            if (p.station_id == self.id and p.get_buy_price() is None) or (p.station_id == other.id and p.get_sell_price() is None):
+                to_delete.append(p.commodity_id)
         compare = {}
         for p in prices:
+            if p.commodity_id in to_delete:
+                continue
             if p.commodity_id not in compare.keys():
                 compare[p.commodity_id] = 0
             if p.station_id == self.id:
-                compare[p.commodity_id] -= p.buy_price
+                compare[p.commodity_id] -= p.get_buy_price()
             if p.station_id == other.id:
-                compare[p.p.commodity_id] += p.sell_price
+                compare[p.commodity_id] += p.get_sell_price()
         price = 0
         commodity = None
         for com in compare:

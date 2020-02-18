@@ -48,6 +48,8 @@ class EDDBLoader:
         session = Session()
         cached = session.query(Cache).filter(Cache.name == api).first()
         if cached is None or cached.loaded >= int(time())+settings.get('cache_time', 86400):
+            if cached is None:
+                cached = Cache(name=api)
             res = self.load_api(api)
             if not res:
                 return False
