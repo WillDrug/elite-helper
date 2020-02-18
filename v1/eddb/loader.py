@@ -9,8 +9,8 @@ from .progress_tracker import generate_bar
 import os, json
 from enum import Enum
 import pandas
-import io
-from sqlalchemy.exc import SQLAlchemyError
+# import io
+# from sqlalchemy.exc import SQLAlchemyError
 
 
 class APIS(Enum):
@@ -47,28 +47,30 @@ class EDDBLoader:
         self.l.info(f'Checking cache state of {api}')
         session = Session()
         cached = session.query(Cache).filter(Cache.name == api).first()
-        if cached is None or cached.loaded >= int(time())+settings.get('cache_time', 86400):
-            if cached is None:
-                cached = Cache(name=api)
+        if cached is None:
+            cached = Cache(name=api, cached=0, loaded=0)
+
+        if cached.loaded + settings.get('cache_time', 86400) <= int(time()):
             res = self.load_api(api)
             if not res:
                 return False
             else:
                 self.l.debug(f'Loading succeeded for {api}: {res}')
                 cached.loaded = int(time())
-            if cached.loaded >= int(time())+settings.get('cache_time', 86400):
-                res = self.update_db_for_api(api)
-            else:
-                self.l.info(f'{api} already loaded, skipping')
+        else:
+            self.l.info(f'Using cache file on {api}')
+
+        if cached.cached + settings.get('cache_time', 86400) <= int(time()):
+            res = self.update_db_for_api(api)
             if not res:
                 return False
             else:
                 self.l.debug(f'Updating DB succeeded for {api}: {res}')
                 cached.cached = int(time())
-            session.commit()
         else:
-            self.l.info(f'Cache passed for {api}')
-            return True
+            self.l.info(f'Using cached DB for {api}')
+        session.commit()
+        session.close()
 
 
 

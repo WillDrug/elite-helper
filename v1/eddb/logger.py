@@ -20,7 +20,7 @@ class EliteLogger:
             self.logger.error('Level unknown. Setting default')
             self.logger.level = INFO
 
-        format = Formatter('log_format', '%(asctime)-15s %(levelname)s %(name)s: %(message)s')
+        format = Formatter('%(asctime)-15s %(levelname)s %(name)s: %(message)s')
         handler = StreamHandler()
         handler.setFormatter(format)
         self.logger.addHandler(StreamHandler())

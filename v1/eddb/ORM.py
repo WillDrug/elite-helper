@@ -2,9 +2,20 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, String, Integer, Float, create_engine, ForeignKey, Boolean
 from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
-from . import settings
+from sqlalchemy import func
 
+from . import settings
 from math import sqrt
+
+from sqlalchemy.event import listens_for
+from sqlalchemy.pool import Pool
+
+@listens_for(Pool, "connect")
+def on_connect_add_func(dbapi_con, connection_record):
+    dbapi_con.create_function('SQRT', 1, sqrt)
+    dbapi_con.create_function('POW', 2, pow)
+
+
 
 engine = create_engine(settings.get('engine'))
 Session = sessionmaker(bind=engine)
@@ -114,14 +125,11 @@ class System(Base):
 
     @hybrid_method
     def distance(self, other):
-        """ABS(
-            SQRT(
-                (x1 - x0) ^ 2 +
-                (y1 - y0) ^ 2 +
-                (z1 - z0) ^ 2
-            )
-        )"""
-        return abs(sqrt(pow(other.x - self.x, 2) + pow(other.y - self.y, 2) + pow(other.z - self.z, 2)))
+        return abs(sqrt(pow(other.x-self.x, 2) + pow(other.y-self.y, 2) + pow(other.z-self.z, 2)))
+
+    @distance.expression
+    def distance(cls, other):
+        return func.abs(func.sqrt(func.pow(other.x-cls.x,2)+func.pow(other.y-cls.y,2)+func.pow(other.z-cls.z,2)))
 
     def __eq__(self, other):
         return self.id == other.id
