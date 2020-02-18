@@ -155,7 +155,7 @@ class EDDBLoader:
             (['type_id', 'type'], Type)
         ]
         drop = ['settlement_size_id', 'economies', 'states', 'prohibited_commodities', 'import_commodities',
-                'export_commodities']
+                'export_commodities', 'selling_modules', 'selling_ships']
 
         commrate = settings.get('commit_rate', -1)
         if commrate < 0:
@@ -212,11 +212,20 @@ class EDDBLoader:
                     s.commit()
         bar.finish()
 
+        bar = generate_bar(stations.__len__(), 'Updating ship sale info')
+        for station in stations[['id', 'selling_ships']].to_dict(orient='records'):
+            bar.update(bar.value + 1)
+            for ship in station['selling_ships']:
+                s.add(StationShips(station_id=station.get('id'), name=ship))
+            if commrate is not None:
+                if bar.value % commrate == 0:
+                    s.commit()
+
         bar = generate_bar(stations.__len__(), 'Updating commodity info')
         for station in stations[['id', 'prohibited_commodities', 'import_commodities', 'export_commodities']].to_dict(
                 orient='records'):
             for key, usage in {'prohibited_commodities': -1, 'import_commodities': 0,
-                               'export_commodities': 1}:  # todo move this outside into ORM or something
+                               'export_commodities': 1}.items():  # todo move this outside into ORM or something
                 for commodity in station[key]:
                     commodity_id = s.query(Commodity).filter(Commodity.name == commodity).first()
                     if commodity_id is None:
@@ -241,13 +250,14 @@ class EDDBLoader:
         return True
 
     def update_db_stations(self):
-        self.l.info('Dropping Station, statioin2state, station2module, station2economy, station2commodity mapping')
+        self.l.info('Dropping Station, statioin2state, station2module, station2economy, station2commodity, stationships mapping')
         s = Session()
         s.query(Station).delete()
         s.query(StationState).delete()
         s.query(StationEconomies).delete()
         s.query(StationModules).delete()
         s.query(StationCommodities).delete()
+        s.query(StationShips).delete()
         s.commit()
         s.close()
         self.l.info('Loading stations')

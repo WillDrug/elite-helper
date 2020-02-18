@@ -188,6 +188,12 @@ class StationCommodities(Base):
     commodity_id = Column(Integer, ForeignKey('commodity.id'), primary_key=True)
     usage = Column(Integer, primary_key=True)  # -1 prohibited, 0 import, 1 export
 
+class StationShips(Base):
+    __tablename__ = 'stationships'
+
+    station_id = Column(Integer, primary_key=True)
+    name = Column(String, primary_key=True)
+
 class Station(Base):
     __tablename__ = 'station'
 
