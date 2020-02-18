@@ -1,4 +1,4 @@
-from logging import getLogger, StreamHandler, DEBUG, INFO, WARNING, ERROR, CRITICAL, basicConfig
+from logging import getLogger, StreamHandler, DEBUG, INFO, WARNING, ERROR, CRITICAL, Formatter
 from . import settings
 
 class EliteLogger:
@@ -12,8 +12,6 @@ class EliteLogger:
 
     def __init__(self, name, level=INFO):
         self.logger = getLogger(name)
-        format = settings.get('log_format', '%(asctime)-15s %(levelname)s %(name)s: %(message)s')
-        basicConfig(format=format)
         for h in self.logger.handlers:
             self.logger.removeHandler(h)
         try:
@@ -21,6 +19,10 @@ class EliteLogger:
         except KeyError:
             self.logger.error('Level unknown. Setting default')
             self.logger.level = INFO
+
+        format = Formatter('log_format', '%(asctime)-15s %(levelname)s %(name)s: %(message)s')
+        handler = StreamHandler()
+        handler.setFormatter(format)
         self.logger.addHandler(StreamHandler())
         self.logger.info(f'Logger starting with level {self.logger.level}')
 
