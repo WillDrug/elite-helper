@@ -36,7 +36,7 @@ class EDDBLoader:
             if self.recache(api):
                 self.l.info(f'Loaded {api}')
             else:
-                self.l.error(f'Failed to load {api}')
+                self.l.error(f'Didn\'t load {api}')
 
     def recache(self, api):
         """
@@ -49,6 +49,7 @@ class EDDBLoader:
         cached = session.query(Cache).filter(Cache.name == api).first()
         if cached is None:
             cached = Cache(name=api, cached=0, loaded=0)
+            session.add(cached)
 
         if cached.loaded + settings.get('cache_time', 86400) <= int(time()):
             res = self.load_api(api)
@@ -59,7 +60,7 @@ class EDDBLoader:
                 cached.loaded = int(time())
         else:
             self.l.info(f'Using cache file on {api}')
-
+        session.commit()
         if cached.cached + settings.get('cache_time', 86400) <= int(time()):
             res = self.update_db_for_api(api)
             if not res:
@@ -384,14 +385,14 @@ class EDDBLoader:
             if self.update_db_for_api(api):
                 self.l.info(f'Updated {api}')
             else:
-                self.l.error(f'Failed to update {api}')
+                self.l.error(f'Didn\'t update {api}')
 
     def load_all(self):
         for api in APIS.get_iterator():
             if self.load_api(api):
                 self.l.info(f'Loaded {api}')
             else:
-                self.l.error(f'Failed to load {api}')
+                self.l.error(f'Didn\'t load {api}')
 
     def load_api(self, api):
         """

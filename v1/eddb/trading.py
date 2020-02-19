@@ -83,12 +83,11 @@ class Trader:
         price = commodity.average_price*price_limit_index
         s = Session()
         applicable = s.query(Listing).filter(Listing.commodity_id == commodity.id).filter(Listing.buy_price < price).all()
-        sub = s.query(Station).join(System).filter(Station.id.in_(applicable))
+        sub = s.query(Station).join(System).filter(Station.id.in_([q.id for q in applicable]))
         if distance_limit is not None:
             sub = sub.filter(System.distance(starting_point) < distance_limit)
 
         sub = sub.order_by(System.distance(starting_point))
-        print(sub)
         return sub.first()
 
 

@@ -5,4 +5,4 @@ el = EDDBLoader()
 el.recache_all()
 
 t = Trader()
-print(t.source('Ariatia', 'Biowaste'))
+station = t.source('Ariatia', 'Biowaste')
