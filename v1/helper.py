@@ -1,8 +1,29 @@
-from eddb.loader import EDDBLoader, APIS
 from eddb.trading import Trader
-
-el = EDDBLoader()
-el.recache_all()
+from edif import EliteInterface
+from eddi import EDDI
 
 t = Trader()
-station = t.source('Ariatia', 'Biowaste')
+
+ed = EDDI()
+ed.startup()
+
+ei = EliteInterface({
+    'carry_on': {
+        'starting_point_system': None,
+        'starting_point_station': None,
+        'target_point_system': None,
+        'target_point_station': None,
+        'function': t.carry_on
+    },
+    'sell': {
+        'function': t.sell,
+        'starting_point': '',
+        'commodity': '',
+        'distance_limit': None,
+        'choices': 1,
+        'price_limit_index': None
+    }
+}, current_state=ed)
+
+ei.run()
+ed.shutdown()

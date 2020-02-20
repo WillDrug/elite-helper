@@ -88,6 +88,22 @@ class Listing(Base):
     def __repr__(self):
         return f'<Listing(id={self.id}, station={self.station_id})>'
 
+    @hybrid_property
+    def buyable(self):
+        return self.buy_price > 0
+
+    @buyable.expression
+    def buyable(self):
+        return self.buy_price > 0
+
+    @hybrid_property
+    def sellable(self):
+        return self.sell_price > 0
+
+    @sellable.expression
+    def sellable(self):
+        return self.sell_price > 0
+
     def get_buy_price(self):
         if self.buy_price == 0:
             return None
@@ -325,32 +341,23 @@ class Station(Base):
             return None, 0
 
         s = Session()
-        prices = s.query(Listing).filter(Listing.station_id.in_([self.id, other.id])).filter(Listing.commodity_id.in_([q.id for q in Commodity.get_marketable()])).all()
-        to_delete = list()
-        for p in prices:
-            if (p.station_id == self.id and p.get_buy_price() is None) or (p.station_id == other.id and p.get_sell_price() is None):
-                to_delete.append(p.commodity_id)
-        compare = {}
-        for p in prices:
-            if p.commodity_id in to_delete:
-                continue
-            if p.commodity_id not in compare.keys():
-                compare[p.commodity_id] = 0
-            if p.station_id == self.id:
-                compare[p.commodity_id] -= p.get_buy_price()
-            if p.station_id == other.id:
-                compare[p.commodity_id] += p.get_sell_price()
+        listing_buy = s.query(Listing).filter(Listing.station_id == other.id).filter(Listing.commodity_id.in_([q.id for q in Commodity.get_marketable()])).filter(Listing.buyable).all()
+        listing_sell = s.query(Listing).filter(Listing.station_id == self.id).filter(Listing.commodity_id.in_([q.commodity_id for q in listing_buy])).filter(Listing.sellable).all()
+        listing_buy = [q for q in listing_buy if q.commodity_id in [z.commodity_id for z in listing_sell]]
+
+        listing_sell.sort(key=lambda x: x.commodity_id)
+        listing_buy.sort(key=lambda x: x.commodity_id)
+
         price = 0
         commodity = None
-        for com in compare:
-            if compare[com] > price:
-                price = compare[com]
-                commodity = com
+        for buy, sell in zip(listing_buy, listing_sell):
+            temprice = sell.get_sell_price()-buy.get_buy_price()
+            if temprice > price:
+                price = temprice
+                commodity = buy.commodity_id
 
         if commodity is not None:
             commodity = s.query(Commodity).filter(Commodity.id == commodity).first()
-            if commodity is not None:
-                commodity = commodity.name
-
         return commodity, price
+
 Base.metadata.create_all(engine)

@@ -23,7 +23,7 @@ class EliteLogger:
         format = Formatter('%(asctime)-15s %(levelname)s %(name)s: %(message)s')
         handler = StreamHandler()
         handler.setFormatter(format)
-        self.logger.addHandler(StreamHandler())
+        self.logger.addHandler(handler)
         self.logger.info(f'Logger {name} starting with level {self.logger.level}')
 
     def debug(self, *args, **kwargs):
