@@ -17,6 +17,37 @@ def on_connect_add_func(dbapi_con, connection_record):
 
 
 
+class LandingPad:
+    def __init__(self, size):
+        self.size = size
+        if self.size == 'None':
+            self.size_num = 0
+        elif self.size == 'M':
+            self.size_num = 1
+        elif self.size == 'L':
+            self.size_num = 2
+        elif size is None:
+            self.size_num = -1
+        elif size == '':  # unknown, presuming small only
+            self.size_num = 0
+        else:
+            raise ValueError(size)
+
+    def __gt__(self, other):
+        return self.size_num >= other.size_num
+
+    def __eq__(self, other):
+        return self.size_num == other.size_num
+
+    def __lt__(self, other):
+        return self.size_num <= other.size_num
+
+    def __ge__(self, other):
+        return self.__gt__(other) or self.__eq__(other)
+
+    def __le__(self, other):
+        return self.__lt__(other) or self.__eq__(other)
+
 engine = create_engine(settings.get('engine'))
 Session = sessionmaker(bind=engine)
 connection = engine.connect()
@@ -60,6 +91,18 @@ class Commodity(Base):
     def get_marketable(cls):
         s = Session()
         ret = s.query(cls).filter(cls.is_non_marketable == False).filter(cls.max_sell_price.isnot(None)).filter(cls.min_buy_price.isnot(None)).all()
+        s.close()
+        return ret
+
+    @classmethod
+    def get_marketable_dict(cls):
+        ret = cls.get_marketable()
+        return {q.id: q for q in ret}
+
+    @classmethod
+    def get_rares(cls):
+        s = Session()
+        ret = s.query(cls).filter(cls.is_rare == True).all()
         s.close()
         return ret
 
@@ -138,6 +181,7 @@ class System(Base):
     simbad_ref = Column(Integer)
     controlling_minor_faction_id = Column(Integer, ForeignKey('faction.id'))
     reserve_type_id = Column(Integer, ForeignKey('reserve.id'))
+
 
     @hybrid_method
     def distance(self, other):
@@ -332,6 +376,15 @@ class Station(Base):
     body_id = Column(Integer, ForeignKey('body.id'))
     has_shipyard = Column(Boolean)
     distance_to_star = Column(Integer)
+
+
+    @hybrid_method
+    def pad_accessible(self, size):
+        return LandingPad(self.max_landing_pad_size) <= LandingPad(size)
+
+    @pad_accessible.expression
+    def pad_accessible(cls, size):
+        return size == 'None' or size is None or (cls.max_landing_pad_size == 'M' and size in ['M', 'L']) or (cls.max_landing_pad_size == 'L' and size == 'L')
 
     def __repr__(self):
         return f'<Station(name={self.name})>'

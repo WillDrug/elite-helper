@@ -7,12 +7,41 @@ from . import settings
 class TooManyResults(Exception):
     pass
 
+
+
 class Trader:
-    def __init__(self, ship_size=None, requires_permit=False, distance_from_star=-1):
+    def __init__(self, ship_size=None, requires_permit=False, distance_from_star=-1, rare_limit=False):
         self.l = EliteLogger('Trader', level=settings.get('log_level'))
-        self.ship_size = ship_size
         self.requires_permit = requires_permit
         self.distance_from_star = distance_from_star
+        self.rare_limit = rare_limit
+        if ship_size is not None:
+            self.ship_size = LandingPad(ship_size)
+
+    def switch_rare(self):
+        self.rare_limit = not self.rare_limit
+        if self.rare_limit:
+            self.load_rares()
+
+    def load_rares(self):
+        s = Session()
+        stations = [self.__pop_single(Station, 'id', z.station_id) for z in s.query(Listing).filter(Listing.commodity_id.in_([f.id for f in Commodity.get_rares()])).all()]
+        self.rares = [(self.__pop_single(System, 'id', q.system_id), q) for q in stations]
+        self.rares = [q for q in self.rares if q[0] is not None]
+        if self.distance_from_star > -1:
+            self.rares = [q for q in self.rares if q[1].distance_to_star < self.distance_from_star]
+        if self.ship_size is not None:
+            self.rares = [q for q in self.rares if LandingPad(q[1].max_landing_pad_size) <= self.ship_size]
+        s.close()
+
+    def closest_rare(self, current_system):
+        if not self.rare_limit:
+            return None
+        current_system = self.__populate_system(current_system)
+        self.rares.sort(key=lambda x: x[0].distance(current_system))
+        ret = self.rares[0] if self.rares[0][0] != current_system else self.rares[1]
+
+        return self.generate_response(source_station=None, source_system=current_system, target_system=ret[0], target_station=ret[1])
 
     def generate_response(self, source_station=None, target_station=None, commodity=None, source_system=None, target_system=None):
         """
@@ -37,23 +66,48 @@ class Trader:
             commodity = target_station - source_station
             commodity, profit = commodity
 
+        if commodity is not None and source_station is not None:
+            buy_listing = self.__get_listing(source_station, commodity)
+        if commodity is not None and target_station is not None:
+            sell_listing = self.__get_listing(target_station, commodity)
+
+        s = Session()
+        if source_station is not None:
+            source_type = s.query(Type).filter(Type.id == source_station.type_id).first()
+        else:
+            source_type = None
+
+        if target_station is not None:
+            target_type = s.query(Type).filter(Type.id == target_station.type_id).first()
+        else:
+            target_type = None
+
+        s.close()
 
         return {
             'source': {
                 'system': source_system,
-                'station': source_station
+                'station': source_station,
+                'distance_from_star': None if source_station is None else source_station.distance_to_star,
+                'landing': None if source_station is None else source_station.max_landing_pad_size,
+                'type': source_type
             },
             'target': {
                 'system': target_system,
-                'station': target_station
+                'station': target_station,
+                'distance_from_star': None if target_station is None else target_station.distance_to_star,
+                'landing': None if target_station is None else target_station.max_landing_pad_size,
+                'type': target_type
             },
             'trade': {
                 'type': 'source' if target_station is None else 'sell' if source_station is None else 'trade',
                 'commodity': commodity,
                 'distance': None if source_system is None or target_system is None else target_system-source_system,
-                'buy': None if commodity is None or source_station is None else self.__get_listing(source_station, commodity).buy_price,  # todo: pre-load if possible
-                'sell': None if commodity is None or target_station is None else self.__get_listing(target_station, commodity).sell_price,
-                'profit': profit if profit is not None else self.__get_profit(source_station, target_station, commodity) if source_station is not None and target_station is not None and commodity is not None else None
+                'buy': None if commodity is None or source_station is None else buy_listing.buy_price,  # todo: pre-load if possible
+                'supply': None if commodity is None or source_station is None else buy_listing.supply,
+                'sell': None if commodity is None or target_station is None else sell_listing.sell_price,
+                'demand': None if commodity is None or target_station is None else sell_listing.demand,
+                'profit': profit if profit is not None else self.__get_profit(source_station, target_station, commodity) if source_station is not None and target_station is not None and commodity is not None else None,
             }
         }
 
@@ -63,6 +117,8 @@ class Trader:
     def __apply_system_filter(self, query):
         if not self.requires_permit:
             query = query.filter(System.needs_permit == False)
+        if self.rare_limit:
+            pass
         return query
 
     def __apply_station_filter(self, query):
@@ -70,7 +126,7 @@ class Trader:
             query = query.filter(Station.distance_to_star < self.distance_from_star)
 
         if self.ship_size is not None:
-            query = query.filter(Station.max_landing_pad_size == self.ship_size)
+            query = query.filter(Station.pad_accessible(self.ship_size.size) == True)
 
         return query
 
@@ -173,7 +229,7 @@ class Trader:
 
         return sub.limit(choices).all()
 
-    def source(self, starting_point, commodity, price_limit_index=1.0, distance_limit=None, choices=1) -> (Station, int):
+    def source(self, starting_point, commodity, price_limit_index=None, distance_limit=None, choices=1) -> (Station, int):
         """
         returns a system object with the best distance to price ratio to buy
         :param commodity: a Commodity object or name
@@ -193,7 +249,7 @@ class Trader:
 
 
 
-    def sell(self, starting_point, commodity, distance_limit=None, choices=1, price_limit_index=None):
+    def sell(self, starting_point, commodity, distance_limit=None, choices=1, price_limit_index=None, starting_station=None):
         """
         returns a system object with the best distance to price ratio to sell
         :param commodity: a Commodity object or name
@@ -206,7 +262,7 @@ class Trader:
         starting_point = self.__populate_system(starting_point)
         possible = self.__find_trading_target(commodity, starting_point, False, distance_limit=distance_limit,
                                               price_limit_index=price_limit_index, choices=choices)
-        return [self.generate_response(target_station=q, source_system=starting_point, commodity=commodity) for q in possible]
+        return [self.generate_response(target_station=q, source_system=starting_point, source_station=self.__populate_station(starting_station, system=starting_point), commodity=commodity) for q in possible]
 
 
     def carry_on(self, starting_point_system, starting_point_station, target_point_system, target_point_station=None):
@@ -243,3 +299,25 @@ class Trader:
 
         return self.generate_response(source_system=starting_point_system, source_station=starting_point_station,
                                       target_system=target_point_system, target_station=target_point_station)
+
+    def find_best(self, starting_point_system, starting_point_station, distance_limit=None, price_index_limit=None, choices=1):
+        starting_point_system = self.__populate_system(starting_point_system)
+        starting_point_station = self.__populate_station(starting_point_station, system=starting_point_system)
+        # 1) Find best commodity
+        s = Session()
+        listings = s.query(Listing).filter(Listing.station_id == starting_point_station.id).filter(Listing.buyable == True).all()
+        commodities = Commodity.get_marketable_dict()
+
+        listings.sort(key=lambda x: commodities.get(x.commodity_id, Commodity(average_price=0)).average_price-x.buy_price)  # this is shit
+
+
+        s.close()
+        # 2) return sell of that commodity
+        for q in listings:
+            commodity = commodities.get(q.commodity_id)
+            proposition = self.sell(starting_point_system, commodity, distance_limit=distance_limit, price_limit_index=price_index_limit, choices=choices, starting_station=starting_point_station)
+            ret = []
+            if proposition.__len__() > 0:
+                ret += proposition
+            if ret.__len__() >= choices:
+                return ret

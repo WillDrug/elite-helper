@@ -2,6 +2,7 @@ import os
 from time import sleep
 from threading import Thread
 from eddb.logger import EliteLogger   # todo move logging into a separate package alltogether
+from eddb.ORM import Session, Listing, Station
 
 class EDDI:
     def __init__(self, loc=f'{os.getenv("APPDATA")}\EDDI\speechresponder.out'):
@@ -33,13 +34,67 @@ class EDDI:
     def event_listener(self):
         for event in self.update_generator():
             self.l.debug(f'EDDI reports got event {event}')
-            event = event.split(';')
+            event = event.strip().split(';')
             if event[0] == 'docked':
                 self.current_system = event[1]
                 self.current_station = event[2]
             if event[0] == 'mission':
                 self.target_system = event[1]
                 self.target_station = event[2]
+            if event[0] == 'listings':
+                if self.current_station is None:
+                    self.l.warning('No current system')
+                    continue
+                print(self.current_station)
+                s = Session()
+                station = s.query(Station).filter(Station.name == self.current_station).first()
+                self.l.debug(event)
+                event.pop(0)
+                event.pop()  # crutch
+                while True:
+                    try:
+                        eddb_id = int(event.pop(0))
+
+                        buyprice = event.pop(0)
+                        if buyprice == '':
+                            buyprice = 0
+                        else:
+                            buyprice = int(buyprice)
+
+                        sellprice = event.pop(0)
+                        if sellprice == '':
+                            sellprice = 0
+                        else:
+                            sellprice = int(sellprice)
+
+                        supply = event.pop(0)
+                        if supply == '':
+                            supply = 0
+                        else:
+                            supply = int(supply)
+
+                        demand = event.pop(0)
+                        if demand == '':
+                            demand = 0
+                        else:
+                            demand = int(demand)
+
+                        name = event.pop(0)
+
+                    except IndexError:
+                        break
+                    self.l.debug(f'Updating {station.name} listing for {name}')
+                    listing = s.query(Listing).filter(Listing.station_id == station.id).filter(Listing.commodity_id == eddb_id).first()
+                    if listing is None:
+                        self.l.error(f'Error! {name} was not listed for {station.name} before. Refusing to create')
+                        continue
+                    listing.buy_price = buyprice
+                    listing.sell_price = sellprice
+                    listing.supply = supply
+                    listing.demand = demand
+                self.l.info(f'Updated {station.name} listings')
+                s.commit()
+                s.close()
 
     def startup(self):
         self.l.info('EDDI Thread starting up')

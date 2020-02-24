@@ -27,12 +27,16 @@ class APIS(Enum):
     
 class EDDBLoader:
     override = False
+    auto_recache = {
+        APIS.LISTINGS.value: settings.get('cache_time'),
+        APIS.STATIONS.value: settings.get('cache_time')*7
+    }
 
     def __init__(self):
         self.l = EliteLogger('EDDBLoader', level=settings.get('log_level'))
 
     def recache_all(self):
-        for api in APIS.get_iterator():
+        for api in self.auto_recache.keys():  # APIS.get_iterator():
             if self.recache(api):
                 self.l.info(f'Loaded {api}')
             else:
@@ -51,7 +55,7 @@ class EDDBLoader:
             cached = Cache(name=api, cached=0, loaded=0)
             session.add(cached)
 
-        if cached.loaded + settings.get('cache_time', 86400) <= int(time()):
+        if cached.loaded + self.auto_recache.get(api, settings.get('cache_time', 86400)) <= int(time()):
             res = self.load_api(api)
             if not res:
                 return False
@@ -61,7 +65,7 @@ class EDDBLoader:
         else:
             self.l.info(f'Using cache file on {api}')
         session.commit()
-        if cached.cached + settings.get('cache_time', 86400) <= int(time()):
+        if cached.cached + self.auto_recache.get(api, settings.get('cache_time', 86400)) <= int(time()):
             res = self.update_db_for_api(api)
             if not res:
                 return False
