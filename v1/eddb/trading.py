@@ -15,6 +15,7 @@ class Trader:
         self.requires_permit = requires_permit
         self.distance_from_star = distance_from_star
         self.rare_limit = rare_limit
+        self.lock_system = None
         if ship_size is not None:
             self.ship_size = LandingPad(ship_size)
 
@@ -34,19 +35,30 @@ class Trader:
             self.rares = [q for q in self.rares if LandingPad(q[1].max_landing_pad_size) <= self.ship_size]
         s.close()
 
-    def closest_rare(self, current_system):
+    def __get_closest_rare(self, current_system):
         if not self.rare_limit:
             return None
         current_system = self.__populate_system(current_system)
         self.rares.sort(key=lambda x: x[0].distance(current_system))
         ret = self.rares[0] if self.rares[0][0] != current_system else self.rares[1]
+        return ret
 
+    def closest_rare(self, current_system):
+        ret = self.__get_closest_rare(current_system)
         return self.generate_response(source_station=None, source_system=current_system, target_system=ret[0], target_station=ret[1])
+
+    def next_rare(self, current_system):
+        rare = self.__get_closest_rare(current_system)
+        self.set_lock_system(rare)
+        return self.generate_response()
+
+    def set_lock_system(self, system):
+        self.lock_system = self.__populate_system(system)
 
     def generate_response(self, source_station=None, target_station=None, commodity=None, source_system=None, target_system=None):
         """
         Helper function to return a common object for all trade functions
-        :param source_station: Station object
+        :param source_station: Station object or None
         :param target_station: Station object or None
         :param commodity: Commodity object or None
         :param source_system: System object or None
@@ -108,17 +120,26 @@ class Trader:
                 'sell': None if commodity is None or target_station is None else sell_listing.sell_price,
                 'demand': None if commodity is None or target_station is None else sell_listing.demand,
                 'profit': profit if profit is not None else self.__get_profit(source_station, target_station, commodity) if source_station is not None and target_station is not None and commodity is not None else None,
+            },
+            'waypoint': {
+                'system': self.lock_system
             }
         }
 
-    def __apply_common_filters(self, query):
-        return self.__apply_station_filter(self.__apply_system_filter(query))
+    def __apply_common_filters(self, query, current_system=None):
+        return self.__apply_station_filter(self.__apply_system_filter(query, current_system=current_system))
 
-    def __apply_system_filter(self, query):
+    def __apply_system_filter(self, query, current_system=None):
+        current_system = self.__populate_system(current_system)
         if not self.requires_permit:
             query = query.filter(System.needs_permit == False)
-        if self.rare_limit:
-            pass
+        if current_system is not None and self.lock_system is not None:
+            if self.lock_system == current_system:
+                self.lock_system = None
+                self.l.info('Dropping waypoint')
+            else:
+                self.l.debug(f'Applying waypoint distance limit to {self.lock_system}')
+                query = query.filter(System.distance(self.lock_system) < current_system.distance(self.lock_system))
         return query
 
     def __apply_station_filter(self, query):
@@ -208,7 +229,7 @@ class Trader:
         s = Session()
 
         sub = s.query(Station).join(System).join(Listing).filter(Listing.commodity_id == commodity.id)
-        sub = self.__apply_common_filters(sub)
+        sub = self.__apply_common_filters(sub, current_system=starting_point)
         if price_limit_index is not None:
             if buy:
                 price_point = commodity.min_buy_price + (commodity.min_buy_price * (1-float(price_limit_index)))
