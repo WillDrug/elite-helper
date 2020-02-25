@@ -103,10 +103,21 @@ while True:
         t.switch_rare()
         print(f'Rare limit is {t.rare_limit}')
 
+    elif a == 'lock':
+        target_system = input('target system> ')
+        if target_system == '':
+            target_system = None
+        t.set_lock_system(target_system)
+
     elif a == 'next_rare':
         if ed.current_system is None:
             current_system = input('current system> ')
+        else:
+            current_system = ed.current_system
+
+        t.next_rare(current_system)
         pprint(t.closest_rare(current_system))
+
 
     elif a == 'choice':
         try:

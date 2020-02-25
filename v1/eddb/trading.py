@@ -35,7 +35,7 @@ class Trader:
             self.rares = [q for q in self.rares if LandingPad(q[1].max_landing_pad_size) <= self.ship_size]
         s.close()
 
-    def __get_closest_rare(self, current_system):
+    def _get_closest_rare(self, current_system):
         if not self.rare_limit:
             return None
         current_system = self.__populate_system(current_system)
@@ -44,12 +44,13 @@ class Trader:
         return ret
 
     def closest_rare(self, current_system):
-        ret = self.__get_closest_rare(current_system)
+        current_system = self.__populate_system(current_system)
+        ret = self._get_closest_rare(current_system)
         return self.generate_response(source_station=None, source_system=current_system, target_system=ret[0], target_station=ret[1])
 
     def next_rare(self, current_system):
-        rare = self.__get_closest_rare(current_system)
-        self.set_lock_system(rare)
+        rare = self._get_closest_rare(self.__populate_system(current_system))
+        self.set_lock_system(rare[0])
         return self.generate_response()
 
     def set_lock_system(self, system):
