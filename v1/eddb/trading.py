@@ -10,7 +10,7 @@ class TooManyResults(Exception):
 
 
 class Trader:
-    def __init__(self, ship_size=None, requires_permit=False, distance_from_star=-1, rare_limit=False):
+    def __init__(self, ship_size=None, requires_permit=False, distance_from_star=-1, rare_limit=False, limit_planetary=False, limit_types=None, limit_sell_count=False):
         self.l = EliteLogger('Trader', level=settings.get('log_level'))
         self.requires_permit = requires_permit
         self.distance_from_star = distance_from_star
@@ -18,6 +18,10 @@ class Trader:
         self.lock_system = None
         if ship_size is not None:
             self.ship_size = LandingPad(ship_size)
+        self.limit_planetary = limit_planetary
+        self.limit_types = limit_types
+        self.types = {q.name: q.id for q in Type.get_types()}
+        self.limit_sell_count = limit_sell_count
 
     def switch_rare(self):
         self.rare_limit = not self.rare_limit
@@ -131,6 +135,7 @@ class Trader:
         return self.__apply_station_filter(self.__apply_system_filter(query, current_system=current_system))
 
     def __apply_system_filter(self, query, current_system=None):
+        self.l.info('Applying system filter')
         current_system = self.__populate_system(current_system)
         if not self.requires_permit:
             query = query.filter(System.needs_permit == False)
@@ -144,12 +149,22 @@ class Trader:
         return query
 
     def __apply_station_filter(self, query):
+        self.l.info(f'Applying station filters: distance: {self.distance_from_star}, ship_size: {self.ship_size}, limit_planetary: {self.limit_planetary}. limit_types: {self.limit_types}, limit_sell_count: {self.limit_sell_count}')
         if self.distance_from_star > -1:
             query = query.filter(Station.distance_to_star < self.distance_from_star)
 
         if self.ship_size is not None:
             query = query.filter(Station.pad_accessible(self.ship_size.size) == True)
 
+        if self.limit_planetary:
+            query = query.filter(Station.is_planetary == False)
+
+        if self.limit_types is not None:
+            query = query.filter(Station.type_id.in_([self.types.get(q) for q in self.limit_types]))
+        # self.l.debug(query)
+        if self.limit_sell_count:
+            query = query.filter(Station.sell_count >= Listing.average_sell_count()*0.7)
+        self.l.debug(f'Returning {query}')
         return query
 
 

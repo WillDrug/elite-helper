@@ -1,11 +1,12 @@
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship, aliased
 from sqlalchemy import Column, String, Integer, Float, create_engine, ForeignKey, Boolean
 from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
-from sqlalchemy import func
+from sqlalchemy import func, select
 
 from . import settings
 from math import sqrt
+from statistics import mean
 
 from sqlalchemy.event import listens_for
 from sqlalchemy.pool import Pool
@@ -47,6 +48,9 @@ class LandingPad:
 
     def __le__(self, other):
         return self.__lt__(other) or self.__eq__(other)
+
+    def __repr__(self):
+        return f'{self.size}({self.size_num})'
 
 engine = create_engine(settings.get('engine'))
 Session = sessionmaker(bind=engine)
@@ -116,6 +120,8 @@ class Category(Base):
         return f'<Category(name={self.name})>'
 
 class Listing(Base):
+    cached = False
+
     __tablename__ = 'listing'
     id = Column(Integer, primary_key=True)
     station_id = Column(Integer, ForeignKey('station.id'))
@@ -158,6 +164,16 @@ class Listing(Base):
             return None
         else:
             return self.sell_price
+
+    @classmethod
+    def average_sell_count(cls):
+        if cls.cached:
+            return cls.asc
+        s = Session()
+        cls.asc = s.query(func.avg(s.query(func.count(cls.station_id)).group_by(cls.station_id))).scalar()
+        s.close()
+        cls.cached = True
+        return cls.asc
 
 class System(Base):
     __tablename__ = 'system'
@@ -318,6 +334,23 @@ class Type(Base):
     def __repr__(self):
         return f'<Type(name={self.name})>'
 
+    @classmethod
+    def get_types(cls):
+        s = Session()
+        types = s.query(cls).all()
+        s.close()
+        return types
+
+    @classmethod
+    def check_type(cls, t):
+        s = Session()
+        t2 = s.query(cls).filter(cls.name == t).first()
+        s.close()
+        if t2 is not None:
+            return True
+        else:
+            return False
+
 class Body(Base):
     __tablename__ = 'body'
 
@@ -376,6 +409,7 @@ class Station(Base):
     body_id = Column(Integer, ForeignKey('body.id'))
     has_shipyard = Column(Boolean)
     distance_to_star = Column(Integer)
+    listings = relationship(Listing, lazy='dynamic')
 
 
     @hybrid_method
@@ -412,5 +446,18 @@ class Station(Base):
         if commodity is not None:
             commodity = s.query(Commodity).filter(Commodity.id == commodity).first()
         return commodity, price
+
+    @hybrid_property
+    def sell_count(self):
+        return self.listings.count()
+
+    @sell_count.expression
+    def sell_count(cls):
+        nl = aliased(Listing)
+        st = aliased(cls)
+        return (select([func.count(nl.id)]).
+                where(nl.station_id == st.id).
+                label("child_count")
+                )
 
 Base.metadata.create_all(engine)

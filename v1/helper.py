@@ -1,11 +1,11 @@
 from eddb.trading import Trader
+from eddb.ORM import *
 from eddi import EDDI
 from pprint import pprint
-t = Trader(ship_size='L', distance_from_star=800)
 
 from eddb.loader import EDDBLoader
 
- # todo sell choice, rare limiter nomral, speech synthesis, check next-possible-jump when finding best
+ # todo sell choice, speech synthesis, check next-possible-jump when finding best
  # todo create web
 el = EDDBLoader()
 el.recache_all()
@@ -118,9 +118,26 @@ while True:
         t.next_rare(current_system)
         pprint(t.closest_rare(current_system))
 
-
     elif a == 'choice':
         try:
             choices = int(input('choice num> '))
         except ValueError:
             choices = 1
+
+    elif a == 'limit_planets':
+        t.limit_planetary = not t.limit_planetary
+        pprint(f'Limiting planetary: {t.limit_planetary}')
+    elif a == 'get_types':
+        pprint(Type.get_types())
+    elif a == 'limit_types':
+        l = input('types> ')
+        l = l.strip().split(',')
+        l = [q.strip() for q in l]
+        if all([Type.check_type(q) for q in l]):
+            t.limit_types = l
+        else:
+            print('Failed')
+
+    elif a == 'limit_sell_count':
+        t.limit_sell_count = not t.limit_sell_count
+        pprint(f'Limiting magic; {t.limit_sell_count}')
