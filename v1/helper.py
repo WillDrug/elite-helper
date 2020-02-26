@@ -5,8 +5,9 @@ from pprint import pprint
 
 from eddb.loader import EDDBLoader
 
- # todo sell choice, speech synthesis, check next-possible-jump when finding best
- # todo create web
+ # todo speech synthesis
+ # todo check next-possible-jump when finding best
+ # todo create a proper interface ffs
 el = EDDBLoader()
 el.recache_all()
 
