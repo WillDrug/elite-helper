@@ -16,12 +16,29 @@ class Trader:
         self.distance_from_star = distance_from_star
         self.rare_limit = rare_limit
         self.lock_system = None
-        if ship_size is not None:
-            self.ship_size = LandingPad(ship_size)
+        self.ship_size = ship_size
         self.limit_planetary = limit_planetary
         self.limit_types = limit_types
         self.types = {q.name: q.id for q in Type.get_types()}
         self.limit_sell_count = limit_sell_count
+
+    @property
+    def ship_size(self):
+        return self._ship_size
+
+    @ship_size.setter
+    def ship_size(self, val):
+        self._ship_size = LandingPad(val)
+
+    @property
+    def rare_limit(self):
+        return self._rare_limit
+
+    @rare_limit.setter
+    def rare_limit(self, val):
+        self._rare_limit = val
+        if self._rare_limit:
+            self.load_rares()
 
     def switch_rare(self):
         self.rare_limit = not self.rare_limit
@@ -153,7 +170,7 @@ class Trader:
         if self.distance_from_star > -1:
             query = query.filter(Station.distance_to_star < self.distance_from_star)
 
-        if self.ship_size is not None:
+        if self.ship_size is not None and self.ship_size.size_num > 0:
             query = query.filter(Station.pad_accessible(self.ship_size.size) == True)
 
         if self.limit_planetary:
@@ -246,6 +263,7 @@ class Trader:
 
         sub = s.query(Station).join(System).join(Listing).filter(Listing.commodity_id == commodity.id)
         sub = self.__apply_common_filters(sub, current_system=starting_point)
+
         if price_limit_index is not None:
             if buy:
                 price_point = commodity.min_buy_price + (commodity.min_buy_price * (1-float(price_limit_index)))
@@ -359,3 +377,6 @@ class Trader:
                 ret += proposition
             if ret.__len__() >= choices:
                 return ret
+
+    def analyze_galaxy(self):
+        pass

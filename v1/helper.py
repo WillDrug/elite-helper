@@ -7,6 +7,13 @@ from eddb.loader import EDDBLoader
 
 
 t = Trader(ship_size='L', requires_permit=False, distance_from_star=1000, rare_limit=False, limit_planetary=True, limit_types=None, limit_sell_count=True)
+t.ship_size = None
+t.distance_from_star = -1
+t.limit_planetary = False
+t.limit_sell_count = False
+pprint(t.sell('Ariatia', 'Low Temperature Diamonds', distance_limit=None, choices=5, price_limit_index=0.9, starting_station=None))
+exit()
+
 
 # todo speech synthesis
  # todo check next-possible-jump when finding best

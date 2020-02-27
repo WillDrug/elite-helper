@@ -29,6 +29,7 @@ class EDDBLoader:
     override = False
     auto_recache = {
         APIS.LISTINGS.value: settings.get('cache_time'),
+        APIS.COMMODITIES.value: settings.get('cache_time'),
         APIS.STATIONS.value: settings.get('cache_time')*7
     }
 

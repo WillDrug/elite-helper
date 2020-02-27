@@ -418,7 +418,7 @@ class Station(Base):
 
     @pad_accessible.expression
     def pad_accessible(cls, size):
-        return size == 'None' or size is None or (cls.max_landing_pad_size == 'M' and size in ['M', 'L']) or (cls.max_landing_pad_size == 'L' and size == 'L')
+        return size == 'None' or size is None or (size == 'M' and cls.max_landing_pad_size in ['M', 'L']) or (size == 'L' and cls.max_landing_pad_size == 'L')
 
     def __repr__(self):
         return f'<Station(name={self.name})>'
