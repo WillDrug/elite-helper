@@ -345,7 +345,8 @@ class Trader:
         listings = s.query(Listing).filter(Listing.station_id == starting_point_station.id).filter(Listing.buyable == True).all()
         commodities = Commodity.get_marketable_dict()
 
-        listings.sort(key=lambda x: commodities.get(x.commodity_id, Commodity(average_price=0)).average_price-x.buy_price)  # this is shit
+        # listings.sort(key=lambda x: commodities.get(x.commodity_id).average_price-x.buy_price)  # this is shit
+        listings.sort(key=lambda x: commodities.get(x.commodity_id).max_sell_price-commodities.get(x.commodity_id).min_buy_price-x.buy_price)  # this is still shit
 
 
         s.close()

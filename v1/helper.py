@@ -5,7 +5,10 @@ from pprint import pprint
 
 from eddb.loader import EDDBLoader
 
- # todo speech synthesis
+
+t = Trader(ship_size='L', requires_permit=False, distance_from_star=1000, rare_limit=False, limit_planetary=True, limit_types=None, limit_sell_count=True)
+
+# todo speech synthesis
  # todo check next-possible-jump when finding best
  # todo create a proper interface ffs
 el = EDDBLoader()
