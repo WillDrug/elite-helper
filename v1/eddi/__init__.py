@@ -109,6 +109,9 @@ class EDDI:
 
     def shutdown(self):
         self.l.info('Received shutdown command')
+        if not self.run:
+            self.l.warning('Thread not running')
+            return
         self.run = False
         sleep(1)
         self.t.join()

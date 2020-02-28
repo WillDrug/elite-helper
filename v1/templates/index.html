@@ -7,9 +7,10 @@
 
     <title>Bootstrap 4, from LayoutIt!</title>
 
-    <meta name="description" content="Source code generated using layoutit.com">
-    <meta name="author" content="LayoutIt!">
-
+    <meta name="description" content="Locality rules">
+    <meta name="author" content="WillDrug">
+	<script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.js" integrity="sha256-yr4fRk/GU1ehYJPAs8P4JlTgu0Hdsp4ZKrx8bDEDC3I=" crossorigin="anonymous"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
     <link href="css/bootstrap.min.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
 
@@ -18,7 +19,18 @@
 
     <div class="container-fluid">
 	<div class="row">
-		<div class="col-md-12">
+		<div class="col-md-12 bg-faded">
+			<nav class="navbar navbar-expand-lg static-top bg-faded">
+				<ul class="nav nav-pills " contenteditable="true">
+				  <li class="nav-item"><a class="nav-link active" href="#">Trading</a></li>
+					<li class="nav-item dropdown ml-md-auto">
+						<button class="btn btn-danger" onclick=control_socket.emit('quit') id="quit">Close</button>
+						<script type="text/javascript" charset="utf-8">
+							var  control_socket = io();
+						</script>
+					</li>
+				</ul>
+			</nav>
 			<!--<div class="alert alert-success alert-dismissable">
 				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">
 					×
@@ -93,39 +105,89 @@
 		<div class="col-md-3">
 			<form role="form">
 				<div class="form-group">
-					 
-					<label for="exampleInputEmail1">
-						Email address
+					<input type="checkbox" class="form-check-inline" id="req_permit" autocomplete="off">
+					<label for="lim_planetary">
+						Requires Permit
 					</label>
-					<input type="email" class="form-control" id="exampleInputEmail1" autocomplete="off" style="background-image: url(&quot;data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAASCAYAAABSO15qAAAAAXNSR0IArs4c6QAAAPhJREFUOBHlU70KgzAQPlMhEvoQTg6OPoOjT+JWOnRqkUKHgqWP4OQbOPokTk6OTkVULNSLVc62oJmbIdzd95NcuGjX2/3YVI/Ts+t0WLE2ut5xsQ0O+90F6UxFjAI8qNcEGONia08e6MNONYwCS7EQAizLmtGUDEzTBNd1fxsYhjEBnHPQNG3KKTYV34F8ec/zwHEciOMYyrIE3/ehKAqIoggo9inGXKmFXwbyBkmSQJqmUNe15IRhCG3byphitm1/eUzDM4qR0TTNjEixGdAnSi3keS5vSk2UDKqqgizLqB4YzvassiKhGtZ/jDMtLOnHz7TE+yf8BaDZXA509yeBAAAAAElFTkSuQmCC&quot;); background-repeat: no-repeat; background-attachment: scroll; background-size: 16px 18px; background-position: 98% 50%;">
 				</div>
 				<div class="form-group">
-					 
-					<label for="exampleInputPassword1">
-						Password
+					<input type="checkbox" class="form-check-inline" id="lim_planetary" autocomplete="off">
+					<label for="req_permit">
+						Limit Planetary
 					</label>
-					<input type="password" class="form-control" id="exampleInputPassword1" autocomplete="off" style="background-image: url(&quot;data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAASCAYAAABSO15qAAAAAXNSR0IArs4c6QAAAPhJREFUOBHlU70KgzAQPlMhEvoQTg6OPoOjT+JWOnRqkUKHgqWP4OQbOPokTk6OTkVULNSLVc62oJmbIdzd95NcuGjX2/3YVI/Ts+t0WLE2ut5xsQ0O+90F6UxFjAI8qNcEGONia08e6MNONYwCS7EQAizLmtGUDEzTBNd1fxsYhjEBnHPQNG3KKTYV34F8ec/zwHEciOMYyrIE3/ehKAqIoggo9inGXKmFXwbyBkmSQJqmUNe15IRhCG3byphitm1/eUzDM4qR0TTNjEixGdAnSi3keS5vSk2UDKqqgizLqB4YzvassiKhGtZ/jDMtLOnHz7TE+yf8BaDZXA509yeBAAAAAElFTkSuQmCC&quot;); background-repeat: no-repeat; background-attachment: scroll; background-size: 16px 18px; background-position: 98% 50%;">
 				</div>
 				<div class="form-group">
-					 
-					<label for="exampleInputFile">
-						File input
-					</label>
-					<input type="file" class="form-control-file" id="exampleInputFile">
-					<p class="help-block">
-						Example block-level help text here.
-					</p>
+					<label for="distance_star">Distance From Star</label>
+					<input type="number" class="form-control" id="distance_star">
 				</div>
-				<div class="checkbox">
-					 
-					<label>
-						<input type="checkbox"> Check me out
-					</label>
-				</div> 
-				<button type="submit" class="btn btn-primary">
-					Submit
-				</button>
+				<div class="form-group">
+					<label for="ship_size">Ship Size</label>
+					<select class="form-control" id="ship_size"><option></option><option>M</option><option>L</option></select>
+				</div>
+				<div class="form-group">
+					<label for="lim_types">Limit Types</label>
+					<input type="text" class="form-control" id="lim_types">
+				</div>
+				<div class="form-group">
+					<label from="lim_sell_count">Limit Sell Count</label>
+					<input type="number" class="form-control" id="lim_sell_count">
+				</div>
+				<div class="form-group">
+					<label for="lock_sys">Lock System</label>
+					<input type="text" id="lock_sys" class="form-control">
+				</div>
+				<div class="form-group">
+					<button type="button" class="btn btn-default" id="type_load" onclick=trade_socket.emit('load_types')>Load Types</button>
+					<button type="button" class="btn btn-default" id="rare_lock" onclick=trade_socket.emit('lock_rare')>Lock Rare</button>
+					<button type="button" class="btn btn-default" id="avg_sell_count" onclick=trade_socket.emit('avg_sell_get')>Avg Sell Count</button>
+				</div>
+				<div class="form-group justify-content-end align-items-end">
+					<button type="button" class="btn btn-primary mx-2" onclick=set_config()>
+						Submit
+					</button>
+				</div>
 			</form>
+		</div>
+		<script type="text/javascript" charset="utf-8">
+			var  trade_socket = io('/trade');
+			trade_socket.on('read_config_done', function(data){
+				$('#lim_planetary').prop('checked', data['limit_planetary']);
+				$('#req_permit').prop('checked', data['requires_permit']);
+				$('#distance_star').val(data['distance_from_star']);
+				$('#lock_sys').val(data['lock_system']);
+				$('#ship_size').val(data['ship_size']);
+				$('#lim_types').val(data['limit_types']);
+				$('#lim_sell_count').val(data['limit_sell_count']);
+			});
+			var set_config = function(){
+				console.log('setting');
+				trade_socket.emit('set_config_done', {
+					limit_planetary: $('#lim_planetary').prop('checked'),
+					requires_permit: $('#req_permit').prop('checked'),
+					distance_from_star: $('#distance_star').val(),
+					lock_system: $('#lock_sys').val(),
+					ship_size: $('#ship_size').val(),
+					limit_types: $('#lim_types').val(),
+					limit_sell_count: $('#lim_sell_count').val()
+				})
+			};
+			trade_socket.on('system_update', function(sys){})
+			trade_socket.on('station_update', function(sta){})
+			trade_socket.on('table_clear', function(){})
+			trade_socket.on('table_append', function(row){})
+		</script>
+	</div>
+	<div class="row">
+		<div class="col-md-12">
+			Here be journal info
+			<!--<div class="alert alert-success alert-dismissable">
+				<button type="button" class="close" data-dismiss="alert" aria-hidden="true">
+					×
+				</button>
+				<h4>
+					Alert!
+				</h4> <strong>Warning!</strong> <p>Stuff here</p>
+			</div>-->
 		</div>
 	</div>
 </div>

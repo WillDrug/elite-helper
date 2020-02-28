@@ -10,7 +10,7 @@ class TooManyResults(Exception):
 
 
 class Trader:
-    def __init__(self, ship_size=None, requires_permit=False, distance_from_star=-1, rare_limit=False, limit_planetary=False, limit_types=None, limit_sell_count=False):
+    def __init__(self, ship_size=None, requires_permit=False, distance_from_star=-1, rare_limit=False, limit_planetary=False, limit_types=None, limit_sell_count=None):
         self.l = EliteLogger('Trader', level=settings.get('log_level'))
         self.requires_permit = requires_permit
         self.distance_from_star = distance_from_star
@@ -38,11 +38,6 @@ class Trader:
     def rare_limit(self, val):
         self._rare_limit = val
         if self._rare_limit:
-            self.load_rares()
-
-    def switch_rare(self):
-        self.rare_limit = not self.rare_limit
-        if self.rare_limit:
             self.load_rares()
 
     def load_rares(self):
@@ -179,11 +174,13 @@ class Trader:
         if self.limit_types is not None:
             query = query.filter(Station.type_id.in_([self.types.get(q) for q in self.limit_types]))
         # self.l.debug(query)
-        if self.limit_sell_count:
-            query = query.filter(Station.sell_count >= Listing.average_sell_count()*0.7)
+        if self.limit_sell_count is not None:
+            query = query.filter(Station.sell_count >= self.limit_sell_count)
         self.l.debug(f'Returning {query}')
         return query
 
+    def get_avg_sell_count(self):
+        return Listing.average_sell_count()
 
     def __get_profit(self, source_station, target_station, commodity):
         """
