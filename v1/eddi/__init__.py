@@ -38,6 +38,10 @@ class EDDI:
             if event[0] == 'docked':
                 self.current_system = event[1]
                 self.current_station = event[2]
+            if event[0] == 'undocked':
+                self.current_station = None
+            if event[0] == 'jump':
+                self.current_system = event[1]
             if event[0] == 'mission':
                 self.target_system = event[1]
                 self.target_station = event[2]
@@ -49,6 +53,7 @@ class EDDI:
                 s = Session()
                 station = s.query(Station).filter(Station.name == self.current_station).first()
                 self.l.debug(event)
+                self.l.info('Updating listings')
                 event.pop(0)
                 event.pop()  # crutch
                 while True:

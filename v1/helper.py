@@ -16,8 +16,10 @@ exit()
 
 
 # todo speech synthesis
- # todo check next-possible-jump when finding best
- # todo create a proper interface ffs
+# todo check next-possible-jump when finding best
+# todo create a proper interface ffs
+# todo connect directly to ED journal entries
+
 el = EDDBLoader()
 el.recache_all()
 
